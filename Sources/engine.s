@@ -60,9 +60,10 @@ PWM1GENB		EQU		PWM_BASE+0x0A4
 
 
 VITESSE			EQU		0x192	; Valeures plus petites => Vitesse plus rapide exemple 0x192
-								; Valeures plus grandes => Vitesse moins rapide exemple 0x1B2
+;VITESSE			EQU		0x001		; Valeures plus grandes => Vitesse moins rapide exemple 0x1B2
 
-ROTATION_TIME	EQU		0x00001388
+ROTATION_TIME	EQU		0x5
+F_CPU 			EQU 	0x3E80
 						
 		AREA    |.text|, CODE, READONLY
 		ENTRY
@@ -329,35 +330,59 @@ MOTEUR_GAUCHE_INVERSE
 		str	r0,[r6]
 		BX	LR
 
-ROTATION_90_DURATION
-    MOV R0, #0000005
-ROTATION_LOOP
-    subs R0, R0, #1
-    bne ROTATION_LOOP
-    BX LR
+;ROTATION_90_DURATION
+;		MOV R2, #2
+;ROTATION_LOOP
+;		SUBS R2, R2, #1
+;		BNE ROTATION_LOOP
+;		BX LR	
+		
+		
+DELAY_5S
+        LDR R0, =0xE000E014     ; SYST_RVR
+        LDR R1, =16000000-1    	; 1 second
+        STR R1, [R0]
 
+        LDR R0, =0xE000E010     ; SYST_CSR
+        MOV R1, #5              ; ENABLE | CLKSOURCE
+        STR R1, [R0]
+
+        MOV R2, #5              ; 5 seconds
+
+; START 5 SECOND COUNT
+WAIT_SEC
+; START 1 SECOND COUNT
+WAIT_TICK
+		; START 1 TICK COUNT
+        LDR R3, [R0]
+        TST R3, #(1 << 16)      ; COUNTFLAG
+        BEQ WAIT_TICK
+		; END 1 TICK COUNT
+		
+        SUBS R2, R2, #1
+		; END 1 SECOND COUNT
+        BNE WAIT_SEC
+		; END 5 SECOND COUNT
+
+        BX LR
 
 ROTATION_90_GAUCHE
+		PUSH {LR}				; Save LR because non-leaf-function
+		
 		BL MOTEUR_GAUCHE_ARRIERE
 		BL MOTEUR_DROIT_AVANT
-
-		BL ROTATION_90_DURATION
+		BL DELAY_5S
 		
-		BX LR
+		POP {PC}				; Get LR because non-leaf-function
 
 ROTATION_90_DROITE
-		b MOTEUR_DROIT_ON
-		b MOTEUR_GAUCHE_ON
-
-		b MOTEUR_GAUCHE_AVANT
-		b MOTEUR_DROIT_ARRIERE
-
-		b ROTATION_90_DURATION
-
-		b MOTEUR_GAUCHE_OFF
-		b MOTEUR_DROIT_OFF
-
-		BX LR
+		PUSH {LR}				; Save LR because non-leaf-function
+		
+		BL MOTEUR_GAUCHE_AVANT
+		BL MOTEUR_DROIT_ARRIERE
+		BL DELAY_5S
+		
+		POP {PC}				; Get LR because non-leaf-function
 
 		nop
 		END
