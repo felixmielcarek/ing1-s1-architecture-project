@@ -1,0 +1,26 @@
+# Build outputs
+*.o
+*.axf
+*.elf
+*.bin
+*.hex
+*.map
+
+# Linker / compiler intermediates
+*.iex
+*.lnp
+*.dep
+
+# Reports
+*.htm
+*.html
+*.lst
+
+# IDE / toolchain
+.vscode/
+.idea/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
