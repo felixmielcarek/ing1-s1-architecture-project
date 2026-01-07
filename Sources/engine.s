@@ -62,7 +62,9 @@ PWM1GENB		EQU		PWM_BASE+0x0A4
 VITESSE			EQU		0x192	; Valeures plus petites => Vitesse plus rapide exemple 0x192
 ;VITESSE			EQU		0x001		; Valeures plus grandes => Vitesse moins rapide exemple 0x1B2
 
-ROTATION_TIME	EQU		0x5
+ROTATION_TIME	EQU		0x7		; 3.5s (7 x 0.5s)
+;ROTATION_TIME	EQU		0x3		; 3s (old value)
+;ROTATION_TIME	EQU		0x5		; 5s
 F_CPU 			EQU 	0x3E80
 						
 		AREA    |.text|, CODE, READONLY
@@ -338,18 +340,18 @@ MOTEUR_GAUCHE_INVERSE
 ;		BX LR	
 		
 		
-DELAY_5S
+DELAY_90_DEG
         LDR R0, =0xE000E014     ; SYST_RVR
-        LDR R1, =16000000-1    	; 1 second
+        LDR R1, =8000000-1    	; 0.5 second
         STR R1, [R0]
 
         LDR R0, =0xE000E010     ; SYST_CSR
         MOV R1, #5              ; ENABLE | CLKSOURCE
         STR R1, [R0]
 
-        MOV R2, #5              ; 5 seconds
+        MOV R2, #ROTATION_TIME	; 3.5 seconds (7 x 0.5s)
 
-; START 5 SECOND COUNT
+; START DELAY 90 DEGREES COUNT
 WAIT_SEC
 ; START 1 SECOND COUNT
 WAIT_TICK
@@ -362,7 +364,7 @@ WAIT_TICK
         SUBS R2, R2, #1
 		; END 1 SECOND COUNT
         BNE WAIT_SEC
-		; END 5 SECOND COUNT
+		; END DELAY 90 DEG COUNT
 
         BX LR
 
@@ -371,7 +373,7 @@ ROTATION_90_GAUCHE
 		
 		BL MOTEUR_GAUCHE_ARRIERE
 		BL MOTEUR_DROIT_AVANT
-		BL DELAY_5S
+		BL DELAY_90_DEG
 		
 		POP {PC}				; Get LR because non-leaf-function
 
@@ -380,7 +382,7 @@ ROTATION_90_DROITE
 		
 		BL MOTEUR_GAUCHE_AVANT
 		BL MOTEUR_DROIT_ARRIERE
-		BL DELAY_5S
+		BL DELAY_90_DEG
 		
 		POP {PC}				; Get LR because non-leaf-function
 
