@@ -15,17 +15,39 @@
 	
 	IMPORT MOTEUR_GAUCHE_OFF
 	IMPORT MOTEUR_DROIT_OFF
+		
+	IMPORT MOTEUR_DROIT_ARRIERE
+	IMPORT MOTEUR_GAUCHE_ARRIERE
 
 	IMPORT ROTATION_90_GAUCHE
+	
+	IMPORT BUMPERS_INIT
+	IMPORT READ_BUMPERS
 
 __main
+	; Initialize motors and bumpers
 	BL MOTEUR_INIT
+	BL BUMPERS_INIT
+	
+	; Turn on both motors
 	BL MOTEUR_GAUCHE_ON
 	BL MOTEUR_DROIT_ON
 	
+loop	
+	; 1. Robot goes front
+	BL MOTEUR_DROIT_ARRIERE	   
+	BL MOTEUR_GAUCHE_ARRIERE
+	
+	; 2. When bumpers 1 or 2 or both are activated, rotate 90° left
+check_bumpers
+	BL READ_BUMPERS
+	BNE check_bumpers			; If bumpers NOT pressed (r5!=0), keep checking
+	
+	; Bumpers pressed (r5==0), handle collision
+	; Rotate 90° left
 	BL ROTATION_90_GAUCHE
 	
-	BL MOTEUR_GAUCHE_OFF
-	BL MOTEUR_DROIT_OFF
+	; 3. Robot goes front again (loop back)
+	B loop
 
     END 
