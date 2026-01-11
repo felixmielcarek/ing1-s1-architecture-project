@@ -27,28 +27,39 @@
 __main
 	; Initialize motors and bumpers
 	BL MOTEUR_INIT
-	;BL BUMPERS_INIT
+	BL BUMPERS_INIT
 
 loop	
 	; 1. Robot goes front
+	; Configurer la direction AVANT d'activer les moteurs
 	BL MOTEUR_GAUCHE_AVANT
 	BL MOTEUR_DROIT_AVANT
 	BL MOTEUR_GAUCHE_ON
 	BL MOTEUR_DROIT_ON
 	
-	; 2. When bumpers 1 or 2 or both are activated, rotate 90° left
+	; ========================================================================
+	; 2. Vérification continue des bumpers pendant que le robot avance
+	; ========================================================================
+	; FONCTIONNEMENT :
+	; - READ_BUMPERS lit les pins PE0 et PE1 (avec pull-up activés)
+	; - Bumpers NON pressés : r5 = 0x03 (les deux bits à 1 grâce au pull-up)
+	; - Bumpers pressés : r5 = 0x00 (court-circuit à la masse)
+	; - CMP r5, #0x00 met le flag Z=1 si r5==0 (bumpers pressés)
+	; - BNE = Branch if Not Equal, donc boucle tant que r5 != 0 (NON pressés)
+	; ========================================================================
 check_bumpers
-	;BL READ_BUMPERS
-	;BEQ check_bumpers			; If bumpers NOT pressed (r5==0), keep checking
+	BL READ_BUMPERS
+	BNE check_bumpers			; Si bumpers NON pressés (r5!=0), continuer à vérifier
 	
-	; Bumpers pressed (r5!=0), handle collision
-	; Rotate 90° left
-	;BL ROTATION_90_GAUCHE
+	; Si on arrive ici : bumpers PRESSÉS (r5==0), gérer la collision
+	; Arrêter les moteurs avant de tourner
+	BL MOTEUR_GAUCHE_OFF
+	BL MOTEUR_DROIT_OFF
+	
+	; Rotation de 90° vers la gauche pour éviter l'obstacle
+	BL ROTATION_90_GAUCHE
 
-	;BL MOTEUR_GAUCHE_OFF
-	;BL MOTEUR_DROIT_OFF
-	
-	; 3. Robot goes front again (loop back)
+	; 3. Retourner au début : le robot repart en ligne droite
 	B loop
 
     END 

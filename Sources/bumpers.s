@@ -22,10 +22,27 @@ BROCHE0_1           EQU     0x03        ; Broche 1 et 2
 	EXPORT READ_BUMPER2
 	EXPORT READ_BUMPERS
 
+; ============================================================================
+; BUMPERS_INIT - Initialise les capteurs de collision (bumpers)
+; ============================================================================
+; Configure les broches PE0 et PE1 en entrées avec pull-up pour détecter
+; les bumpers avant et arrière du robot.
+;
+; PRINCIPE DE FONCTIONNEMENT :
+; - Les bumpers sont des interrupteurs normalement ouverts
+; - Pull-up activé : quand bumper NON pressé, pin = 1 (tirée vers VDD)
+; - Quand bumper pressé : pin = 0 (court-circuit à la masse GND)
+;
+; Configuration :
+; - Port E, broches 0 et 1 en INPUT (par défaut)
+; - Pull-up activé sur PE0 et PE1
+; - Fonction digitale activée
+; ============================================================================
 BUMPERS_INIT
 	;branchement du port E
 	ldr r6, = SYSCTL_PERIPH_GPIO  			;; RCGC2
-	mov r0, #0x10 							;; Enable clock sur GPIO E 0x10 = ob010000
+	ldr r0, [r6]							;; Lire la valeur actuelle
+	ORR r0, r0, #0x10 						;; Enable clock sur GPIO E 0x10 = ob010000
 	str r0, [r6]
 	
 	nop
@@ -46,6 +63,12 @@ BUMPERS_INIT
 	
 	BX LR
 
+; ============================================================================
+; READ_BUMPER1 - Lit l'état du bumper 1 (PE0)
+; ============================================================================
+; Retour : r5 = 0x00 si pressé, 0x01 si non pressé
+;          Flag Z = 1 si pressé (r5==0)
+; ============================================================================
 READ_BUMPER1
 	;lecture de l'etat du bumper1
 	ldr r9, = GPIO_PORTE_BASE + (BROCHE0<<2)
@@ -53,6 +76,12 @@ READ_BUMPER1
 	cmp r5,#0x00
 	BX LR
 
+; ============================================================================
+; READ_BUMPER2 - Lit l'état du bumper 2 (PE1)
+; ============================================================================
+; Retour : r5 = 0x00 si pressé, 0x02 si non pressé
+;          Flag Z = 1 si pressé (r5==0)
+; ============================================================================
 READ_BUMPER2
 	;lecture de l'etat du bumper2
 	ldr r8, = GPIO_PORTE_BASE + (BROCHE1<<2)
@@ -60,6 +89,21 @@ READ_BUMPER2
 	cmp r5,#0x00
 	BX LR
 
+; ============================================================================
+; READ_BUMPERS - Lit l'état des deux bumpers en même temps
+; ============================================================================
+; Lit PE0 et PE1 simultanément
+; 
+; Valeurs possibles de r5 :
+; - 0x03 (0b11) : Aucun bumper pressé (les deux à 1 grâce au pull-up)
+; - 0x02 (0b10) : Bumper 1 pressé (PE0=0), bumper 2 non pressé (PE1=1)
+; - 0x01 (0b01) : Bumper 1 non pressé (PE0=1), bumper 2 pressé (PE1=0)
+; - 0x00 (0b00) : Les deux bumpers pressés
+;
+; Retour : r5 = valeur lue sur PE1:PE0
+;          Flag Z = 1 si les deux bumpers pressés (r5==0)
+;          Flag Z = 0 si au moins un bumper non pressé (r5!=0)
+; ============================================================================
 READ_BUMPERS
 	;lecture des deux ports en meme temps
 	ldr r8, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
