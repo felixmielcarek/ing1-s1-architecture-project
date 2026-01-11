@@ -1,0 +1,158 @@
+	AREA    |.text|, CODE, READONLY
+
+; ============================================================================
+; Configuration des switches (boutons poussoirs) du Stellaris EvalBot
+; ============================================================================
+; Le robot a 2 boutons sur le Port D :
+; - Switch 1 (SW1) : PD6 (broche 6)
+; - Switch 2 (SW2) : PD7 (broche 7)
+;
+; Les switches sont câblés avec pull-up :
+; - Switch NON pressé : pin = 1 (pull-up tire vers VDD)
+; - Switch pressé : pin = 0 (court-circuit à la masse)
+; ============================================================================
+
+; This register controls the clock gating logic in normal Run mode
+SYSCTL_PERIPH_GPIO  EQU		0x400FE108 ; SYSCTL_RCGC2_R (p291 datasheet de lm3s9b92.pdf)
+
+; GPIO Port D base address
+GPIO_PORTD_BASE		EQU		0x40007000 ; GPIO Port D (APB) base : 0x4000.7000 (p291)
+	
+; Digital enable register
+GPIO_O_DEN  		EQU 	0x0000051C  ; GPIO Digital Enable (p437)
+
+; Pull-up register
+GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432)
+
+; Direction register (0=input, 1=output)
+GPIO_O_DIR			EQU		0x00000400	; GPIO Direction (p417)
+	
+; Masques pour les switches
+SWITCH1             EQU     0x40		; Broche 6 (PD6) = 0b01000000
+SWITCH2             EQU     0x80        ; Broche 7 (PD7) = 0b10000000
+SWITCHES_BOTH       EQU     0xC0        ; Broches 6 et 7 = 0b11000000
+	
+	EXPORT SWITCHES_INIT
+	EXPORT READ_SWITCH1
+	EXPORT READ_SWITCH2
+	EXPORT WAIT_SWITCH_PRESS
+	EXPORT GET_ROTATION_DIRECTION
+
+; ============================================================================
+; SWITCHES_INIT - Initialise les boutons poussoirs
+; ============================================================================
+; Configure les broches PD6 et PD7 en entrées avec pull-up pour lire
+; les états des deux switches du robot.
+;
+; Configuration :
+; - Port D, broches 6 et 7 en INPUT (par défaut)
+; - Pull-up activé sur PD6 et PD7
+; - Fonction digitale activée
+;
+; NOTE : Le Port D est déjà activé par MOTEUR_INIT, mais on s'assure
+; que l'horloge est bien active (utilisation de ORR, pas MOV)
+; ============================================================================
+SWITCHES_INIT
+	; Activer l'horloge du port D (bit 3 de RCGC2)
+	; NOTE: Déjà fait dans MOTEUR_INIT, mais on s'assure avec ORR
+	ldr r6, = SYSCTL_PERIPH_GPIO  			; RCGC2
+	ldr r0, [r6]							; Lire la valeur actuelle
+	ORR r0, r0, #0x08 						; Enable clock sur GPIO D (bit 3)
+	str r0, [r6]
+	
+	nop
+	nop
+	nop
+	
+	; Direction : INPUT (par défaut, mais on s'assure que les bits sont à 0)
+	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DIR
+	ldr r0, [r6]
+	BIC r0, r0, #SWITCHES_BOTH				; Clear bits 6 et 7 pour INPUT
+	str r0, [r6]
+	
+	; Activer les pull-ups sur PD6 et PD7
+	ldr r6, = GPIO_PORTD_BASE+GPIO_I_PUR
+	ldr r0, [r6]
+	ORR r0, r0, #SWITCHES_BOTH	
+	str r0, [r6]
+	
+	; Activer la fonction digitale sur PD6 et PD7
+	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DEN
+	ldr r0, [r6]
+	ORR r0, r0, #SWITCHES_BOTH	
+	str r0, [r6]
+	
+	BX LR
+
+; ============================================================================
+; READ_SWITCH1 - Lit l'état du switch 1 (PD6)
+; ============================================================================
+; Retour : r5 = 0x00 si pressé, 0x40 si non pressé
+;          Flag Z = 1 si pressé (r5==0)
+; ============================================================================
+READ_SWITCH1
+	ldr r6, = GPIO_PORTD_BASE + (SWITCH1<<2)
+	ldr r5, [r6]
+	cmp r5, #0x00
+	BX LR
+
+; ============================================================================
+; READ_SWITCH2 - Lit l'état du switch 2 (PD7)
+; ============================================================================
+; Retour : r5 = 0x00 si pressé, 0x80 si non pressé
+;          Flag Z = 1 si pressé (r5==0)
+; ============================================================================
+READ_SWITCH2
+	ldr r6, = GPIO_PORTD_BASE + (SWITCH2<<2)
+	ldr r5, [r6]
+	cmp r5, #0x00
+	BX LR
+
+; ============================================================================
+; WAIT_SWITCH_PRESS - Attend qu'un switch soit pressé
+; ============================================================================
+; Boucle jusqu'à ce qu'un des deux switches soit pressé.
+; Cette fonction bloque l'exécution jusqu'à ce qu'un switch soit activé.
+;
+; Retour : r4 = 1 si Switch1 pressé (rotation gauche)
+;          r4 = 2 si Switch2 pressé (rotation droite)
+; ============================================================================
+WAIT_SWITCH_PRESS
+	PUSH {LR}				; Save LR because non-leaf-function
+	
+WAIT_LOOP
+	; Vérifier Switch 1
+	BL READ_SWITCH1
+	BEQ SWITCH1_PRESSED		; Si pressé (r5==0), aller à SWITCH1_PRESSED
+	
+	; Vérifier Switch 2
+	BL READ_SWITCH2
+	BEQ SWITCH2_PRESSED		; Si pressé (r5==0), aller à SWITCH2_PRESSED
+	
+	; Aucun switch pressé, reboucler
+	B WAIT_LOOP
+
+SWITCH1_PRESSED
+	MOV r4, #1				; r4 = 1 pour rotation gauche
+	POP {PC}				; Restore LR to PC (return)
+
+SWITCH2_PRESSED
+	MOV r4, #2				; r4 = 2 pour rotation droite
+	POP {PC}				; Restore LR to PC (return)
+
+; ============================================================================
+; GET_ROTATION_DIRECTION - Retourne le sens de rotation mémorisé
+; ============================================================================
+; Cette fonction retourne simplement la valeur stockée dans r4 qui indique
+; quel switch a été pressé au démarrage.
+;
+; Entrée : r4 = direction (1=gauche, 2=droite)
+; Retour : r4 inchangé
+; ============================================================================
+GET_ROTATION_DIRECTION
+	; r4 contient déjà la direction (1 ou 2)
+	BX LR
+
+	NOP
+	NOP
+	END
