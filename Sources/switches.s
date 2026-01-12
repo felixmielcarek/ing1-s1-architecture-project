@@ -114,9 +114,8 @@ READ_SWITCH2
 ; Boucle jusqu'à ce qu'un des deux switches soit pressé.
 ; Cette fonction bloque l'exécution jusqu'à ce qu'un switch soit activé.
 ;
-; Retour : r4 = 1 si Switch1 pressé (rotation gauche)
-;          r4 = 2 si Switch2 pressé (rotation droite)
-; NOTE : r4 est un registre GLOBAL du projet, il n'est pas préservé
+; Retour : r0 = 1 si Switch1 pressé (rotation gauche)
+;          r0 = 2 si Switch2 pressé (rotation droite)
 ; ============================================================================
 WAIT_SWITCH_PRESS
 	PUSH {r6, r10, LR}				; Sauvegarder registres préservés
@@ -138,11 +137,11 @@ WAIT_LOOP
 	B WAIT_LOOP
 
 SWITCH1_PRESSED
-	MOV r4, #1				; r4 = 1 pour rotation gauche
+	MOV r0, #1				; r0 = 1 pour rotation gauche (convention AAPCS)
 	POP {r6, r10, PC}				; Restaurer registres et retourner
 
 SWITCH2_PRESSED
-	MOV r4, #2				; r4 = 2 pour rotation droite
+	MOV r0, #2				; r0 = 2 pour rotation droite (convention AAPCS)
 	POP {r6, r10, PC}				; Restaurer registres et retourner
 
 ; ============================================================================

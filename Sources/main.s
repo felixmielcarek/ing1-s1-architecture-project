@@ -66,8 +66,9 @@ __main
 	; ATTENTE DU CHOIX DE DIRECTION
 	; ========================================================================
 	; SW1 = rotation gauche, SW2 = rotation droite
-	; Retour dans r4: 1=gauche, 2=droite
+	; Retour dans r0: 1=gauche, 2=droite
 	BL WAIT_SWITCH_PRESS
+	MOV r4, r0					; Stocker la direction dans r4 (registre global)
 	
 	; ========================================================================
 	; INITIALISATION DU COMPTEUR DE ROTATIONS
