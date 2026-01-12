@@ -52,7 +52,9 @@ SWITCHES_BOTH       EQU     0xC0        ; Broches 6 et 7 = 0b11000000
 ; NOTE : Le Port D est déjà activé par MOTEUR_INIT, mais on s'assure
 ; que l'horloge est bien active (utilisation de ORR, pas MOV)
 ; ============================================================================
-SWITCHES_INIT
+SWITCHES_INIT	
+	PUSH {r6, LR}						; Sauvegarder registres préservés
+	
 	; Activer l'horloge du port D (bit 3 de RCGC2)
 	; NOTE: Déjà fait dans MOTEUR_INIT, mais on s'assure avec ORR
 	ldr r6, = SYSCTL_PERIPH_GPIO  			; RCGC2
@@ -72,31 +74,39 @@ SWITCHES_INIT
 	; Activer la fonction digitale sur PD6 et PD7
 	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DEN
 	ldr r0, = SWITCHES_BOTH
-	BX LR
+	str r0, [r6]
+	
+	POP {r6, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; READ_SWITCH1 - Lit l'état du switch 1 (PD6)
 ; ============================================================================
-; Retour : r5 = 0x00 si pressé, 0x40 si non pressé
-;          Flag Z = 1 si pressé (r5==0)
+; Retour : r0 = 0x00 si pressé, 0x40 si non pressé
+;          Flag Z = 1 si pressé (r0==0)
 ; ============================================================================
 READ_SWITCH1
+	PUSH {r6, LR}						; Sauvegarder registres préservés
+	
 	ldr r6, = GPIO_PORTD_BASE + (SWITCH1<<2)
-	ldr r5, [r6]
-	cmp r5, #0x00
-	BX LR
+	ldr r0, [r6]						; Lire l'état dans r0 (valeur de retour)
+	cmp r0, #0x00
+	
+	POP {r6, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; READ_SWITCH2 - Lit l'état du switch 2 (PD7)
 ; ============================================================================
-; Retour : r5 = 0x00 si pressé, 0x80 si non pressé
-;          Flag Z = 1 si pressé (r5==0)
+; Retour : r0 = 0x00 si pressé, 0x80 si non pressé
+;          Flag Z = 1 si pressé (r0==0)
 ; ============================================================================
 READ_SWITCH2
+	PUSH {r6, LR}						; Sauvegarder registres préservés
+	
 	ldr r6, = GPIO_PORTD_BASE + (SWITCH2<<2)
-	ldr r5, [r6]
-	cmp r5, #0x00
-	BX LR
+	ldr r0, [r6]						; Lire l'état dans r0 (valeur de retour)
+	cmp r0, #0x00
+	
+	POP {r6, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; WAIT_SWITCH_PRESS - Attend qu'un switch soit pressé
@@ -106,9 +116,10 @@ READ_SWITCH2
 ;
 ; Retour : r4 = 1 si Switch1 pressé (rotation gauche)
 ;          r4 = 2 si Switch2 pressé (rotation droite)
+; NOTE : r4 est un registre GLOBAL du projet, il n'est pas préservé
 ; ============================================================================
 WAIT_SWITCH_PRESS
-	PUSH {LR}				; Save LR because non-leaf-function
+	PUSH {r6, r10, LR}				; Sauvegarder registres préservés
 	
 WAIT_LOOP
 	; Lire Switch 1 (PD6)
@@ -128,11 +139,11 @@ WAIT_LOOP
 
 SWITCH1_PRESSED
 	MOV r4, #1				; r4 = 1 pour rotation gauche
-	POP {PC}				; Restore LR to PC (return)
+	POP {r6, r10, PC}				; Restaurer registres et retourner
 
 SWITCH2_PRESSED
 	MOV r4, #2				; r4 = 2 pour rotation droite
-	POP {PC}				; Restore LR to PC (return)
+	POP {r6, r10, PC}				; Restaurer registres et retourner
 
 ; ============================================================================
 ; GET_ROTATION_DIRECTION - Retourne le sens de rotation mémorisé
@@ -141,10 +152,10 @@ SWITCH2_PRESSED
 ; quel switch a été pressé au démarrage.
 ;
 ; Entrée : r4 = direction (1=gauche, 2=droite)
-; Retour : r4 inchangé
+; Retour : r0 = direction (1=gauche, 2=droite)
 ; ============================================================================
 GET_ROTATION_DIRECTION
-	; r4 contient déjà la direction (1 ou 2)
+	MOV r0, r4				; Copier la direction vers r0 (convention ARM AAPCS)
 	BX LR
 
 	NOP

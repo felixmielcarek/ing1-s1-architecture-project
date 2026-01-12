@@ -100,6 +100,8 @@ PWM_LOAD		EQU		(F_CPU_REAL / F_PWM) / 2	; = 781 (0x30D)
 
 
 MOTEUR_INIT	
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		ldr r6, = SYSCTL_RCGC0
 		ldr	r0, [R6]
         ORR	r0, r0, #0x00100000  ;;bit 20 = PWM recoit clock: ON (p271) 
@@ -268,83 +270,113 @@ MOTEUR_INIT
 		mov	r0, #0x02
 		str	r0,[r6]		
 		
-		BX	LR	; FIN du sous programme d'init.
+		POP {r6, PC}				; Restaurer registres et retourner
 
 ;Enable PWM0 (bit 0) et PWM2 (bit 2) p1145 
 ;Attention ici c'est les sorties PWM0 et PWM2
 ;qu'on controle, pas les blocks PWM0 et PWM1!!!
 MOTEUR_DROIT_ON
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Enable sortie PWM0 (bit 0), p1145 
 		ldr	r6,	=PWMENABLE
 		ldr r0, [r6]
 		orr r0,	#0x01 ;bit 0 à 1
 		str	r0,	[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
-MOTEUR_DROIT_OFF 
+MOTEUR_DROIT_OFF
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		 
 		ldr	r6,	=PWMENABLE
 		ldr r0,	[r6]
 		and	r0,	#0x0E	;bit 0 à 0
 		str	r0,	[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_GAUCHE_ON
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		ldr	r6,	=PWMENABLE
 		ldr	r0, [r6]
 		orr	r0,	#0x04	;bit 2 à 1
 		str	r0,	[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_GAUCHE_OFF
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		ldr	r6,	=PWMENABLE
 		ldr	r0,	[r6]
 		and	r0,	#0x0B	;bit 2 à 0
 		str	r0,	[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_DROIT_ARRIERE
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_D+(GPIO_1<<2)) 
 		mov	r0, #0
 		str	r0,[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_DROIT_AVANT
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_D+(GPIO_1<<2)) 
 		mov	r0, #2
 		str	r0,[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_GAUCHE_ARRIERE
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_H+(GPIO_1<<2)) 
 		mov	r0, #2 ; contraire du moteur Droit
 		str	r0,[r6]
-		BX	LR		
+		
+		POP {r6, PC}				; Restaurer registres et retourner		
 
 MOTEUR_GAUCHE_AVANT
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_H+(GPIO_1<<2)) 
 		mov	r0, #0
 		str	r0,[r6]
-		BX	LR		
+		
+		POP {r6, PC}				; Restaurer registres et retourner		
 
 MOTEUR_DROIT_INVERSE
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_D+(GPIO_1<<2)) 
 		ldr	r1, [r6]
 		EOR	r0, r1, #GPIO_1
 		str	r0,[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 
 MOTEUR_GAUCHE_INVERSE
+		PUSH {r6, LR}				; Sauvegarder registres préservés
+		
 		;Inverse Direction (GPIO_D1)
 		ldr	r6, =(GPIODATA_H+(GPIO_1<<2)) 
 		ldr	r1, [r6]
 		EOR	r0, r1, #GPIO_1
 		str	r0,[r6]
-		BX	LR
+		
+		POP {r6, PC}				; Restaurer registres et retourner
 		
 ; ============================================================================
 ; DELAY_90_DEG - Génère un délai temporel fixe pour rotation de 90 degrés

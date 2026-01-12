@@ -34,8 +34,6 @@ DELAY_COUNT			EQU 1600000		; ~1 seconde à 16 MHz
 ; Retour: Aucun
 ; ============================================================================
 LEDS_INIT
-	PUSH {R0, R1, R2, LR}
-	
 	; Activer l'horloge du Port F
 	LDR R0, =SYSCTL_RCGC2
 	MOV R1, #0x20				; Bit 5 = Port F
@@ -66,7 +64,7 @@ LEDS_INIT
 	MOV R1, #0
 	STR R1, [R0]
 	
-	POP {R0, R1, R2, PC}
+	BX LR
 
 ; ============================================================================
 ; LED_GAUCHE_BLINK_N_TIMES - Fait clignoter la LED gauche N fois
@@ -81,7 +79,7 @@ LEDS_INIT
 ; Retour: Aucun
 ; ============================================================================
 LED_GAUCHE_BLINK_N_TIMES
-	PUSH {R4, R5, LR}
+	PUSH {R4, LR}				; Sauvegarder r4 (préservé) et LR (appels de fonction)
 	MOV R4, R0					; R4 = compteur de clignotements
 	
 	; Si R0 = 0, ne rien faire
@@ -110,7 +108,7 @@ blink_loop
 	BNE blink_loop
 	
 end_blink
-	POP {R4, R5, PC}
+	POP {R4, PC}
 
 ; ============================================================================
 ; LED_DELAY - Délai pour le clignotement
@@ -121,12 +119,11 @@ end_blink
 ; Retour: Aucun
 ; ============================================================================
 LED_DELAY
-	PUSH {R5}
+	PUSH {R5, LR}				; Sauvegarder r5 (préservé)
 	LDR R5, =DELAY_COUNT
 delay_loop
 	SUBS R5, R5, #1
 	BNE delay_loop
-	POP {R5}
-	BX LR
+	POP {R5, PC}
 
 	END

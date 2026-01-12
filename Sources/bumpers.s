@@ -42,6 +42,8 @@ BROCHE0_1           EQU     0x03        ; Broche 1 et 2
 ; - Fonction digitale activée
 ; ============================================================================
 BUMPERS_INIT
+	PUSH {r6, LR}						; Sauvegarder registres préservés
+	
 	;branchement du port E
 	ldr r6, = SYSCTL_PERIPH_GPIO  			;; RCGC2
 	ldr r0, [r6]							;; Lire la valeur actuelle
@@ -68,33 +70,39 @@ BUMPERS_INIT
 	ldr r0, = BROCHE0_1	
 	str r0, [r6]
 	
-	BX LR
+	POP {r6, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; READ_BUMPER1 - Lit l'état du bumper 1 (PE0)
 ; ============================================================================
-; Retour : r5 = 0x00 si pressé, 0x01 si non pressé
-;          Flag Z = 1 si pressé (r5==0)
+; Retour : r0 = 0x00 si pressé, 0x01 si non pressé
+;          Flag Z = 1 si pressé (r0==0)
 ; ============================================================================
 READ_BUMPER1
+	PUSH {r9, LR}						; Sauvegarder registres préservés
+	
 	;lecture de l'etat du bumper1
 	ldr r9, = GPIO_PORTE_BASE + (BROCHE0<<2)
-	ldr r5, [r9]
-	cmp r5,#0x00
-	BX LR
+	ldr r0, [r9]						; Lire dans r0 (valeur de retour)
+	cmp r0, #0x00
+	
+	POP {r9, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; READ_BUMPER2 - Lit l'état du bumper 2 (PE1)
 ; ============================================================================
-; Retour : r5 = 0x00 si pressé, 0x02 si non pressé
-;          Flag Z = 1 si pressé (r5==0)
+; Retour : r0 = 0x00 si pressé, 0x02 si non pressé
+;          Flag Z = 1 si pressé (r0==0)
 ; ============================================================================
 READ_BUMPER2
+	PUSH {r8, LR}						; Sauvegarder registres préservés
+	
 	;lecture de l'etat du bumper2
 	ldr r8, = GPIO_PORTE_BASE + (BROCHE1<<2)
-	ldr r5, [r8]
-	cmp r5,#0x00
-	BX LR
+	ldr r0, [r8]						; Lire dans r0 (valeur de retour)
+	cmp r0, #0x00
+	
+	POP {r8, PC}						; Restaurer registres et retourner
 
 ; ============================================================================
 ; READ_BUMPERS - Lit l'état des deux bumpers en même temps
