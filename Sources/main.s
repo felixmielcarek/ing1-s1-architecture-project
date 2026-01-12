@@ -29,47 +29,45 @@ MAX_ROTATIONS	EQU		4		; Nombre maximum de rotations avant arrêt
 	IMPORT SWITCHES_INIT
 	IMPORT WAIT_SWITCH_PRESS
 	
-	IMPORT OLED_INIT
-	IMPORT OLED_CLEAR
-	IMPORT OLED_SET_CURSOR
-	IMPORT OLED_WRITE_STRING
+	IMPORT CHRONO_START
+	IMPORT CHRONO_STOP_DISTANCE
 	
-	IMPORT ready_msg
-	IMPORT finish_msg
-	IMPORT done_msg
+	IMPORT LEDS_INIT
+	IMPORT LED_GAUCHE_BLINK_N_TIMES
+
+; ============================================================================
+; ZONE DE DONNÉES - Stockage des distances parcourues
+; ============================================================================
+	AREA myData, DATA, READWRITE
+	
+; Tableau pour stocker les 4 distances (en cm) entre chaque rotation
+; distances[0] = distance avant 1ère rotation
+; distances[1] = distance avant 2ème rotation
+; distances[2] = distance avant 3ème rotation
+; distances[3] = distance avant 4ème rotation
+distances	SPACE 16		; 4 distances × 4 bytes = 16 bytes
+
+	AREA    |.text|, CODE, READONLY
 
 __main
 	; ========================================================================
 	; INITIALISATION
 	; ========================================================================
-	; Initialiser les moteurs, bumpers, switches et écran OLED
 	BL MOTEUR_INIT
 	BL BUMPERS_INIT
 	BL SWITCHES_INIT
-	BL OLED_INIT
+	BL LEDS_INIT
 	
-	; Effacer l'écran au démarrage
-	BL OLED_CLEAR
-	
-	; Afficher message de démarrage (écran 96x16 = 2 pages seulement)
-	MOV r0, #0				; Colonne 0
-	MOV r1, #0				; Page 0 (ligne du haut)
-	BL OLED_SET_CURSOR
-	LDR r0, =ready_msg
-	BL OLED_WRITE_STRING
+	; Test LED : clignoter 3 fois au démarrage
+	MOV r0, #3
+	BL LED_GAUCHE_BLINK_N_TIMES
 	
 	; ========================================================================
 	; ATTENTE DU CHOIX DE DIRECTION
 	; ========================================================================
-	; Attendre que l'utilisateur presse un switch pour choisir la direction
-	; de rotation lors des collisions :
-	; - Switch 1 (SW1) : rotation à GAUCHE
-	; - Switch 2 (SW2) : rotation à DROITE
-	; Résultat dans r4 : 1=gauche, 2=droite
+	; SW1 = rotation gauche, SW2 = rotation droite
+	; Retour dans r4: 1=gauche, 2=droite
 	BL WAIT_SWITCH_PRESS
-	
-	; r4 contient maintenant la direction choisie (1 ou 2)
-	; Cette valeur sera utilisée à chaque collision
 	
 	; ========================================================================
 	; INITIALISATION DU COMPTEUR DE ROTATIONS
@@ -81,6 +79,8 @@ loop
 	; ========================================================================
 	; 1. AVANCER EN LIGNE DROITE
 	; ========================================================================
+	BL CHRONO_START
+	
 	; Configurer la direction AVANT d'activer les moteurs
 	BL MOTEUR_GAUCHE_AVANT
 	BL MOTEUR_DROIT_AVANT
@@ -90,24 +90,32 @@ loop
 	; ========================================================================
 	; 2. VÉRIFICATION CONTINUE DES BUMPERS
 	; ========================================================================
-	; FONCTIONNEMENT :
-	; - READ_BUMPERS lit les pins PE0 et PE1 (avec pull-up activés)
-	; - Bumpers NON pressés : r5 = 0x03 (les deux bits à 1 grâce au pull-up)
-	; - Bumpers pressés : r5 = 0x00 (court-circuit à la masse)
-	; - CMP r5, #0x00 met le flag Z=1 si r5==0 (bumpers pressés)
-	; - BNE = Branch if Not Equal, donc boucle tant que r5 != 0 (NON pressés)
-	; ========================================================================
+	; r0 = 0x03 si bumpers non pressés, 0x00 si pressés
 check_bumpers
 	BL READ_BUMPERS
-	BNE check_bumpers			; Si bumpers NON pressés (r5!=0), continuer à vérifier
+	CMP r0, #0x03
+	BEQ check_bumpers
 	
 	; ========================================================================
 	; 3. GESTION DE LA COLLISION
 	; ========================================================================
-	; Si on arrive ici : bumpers PRESSÉS (r5==0), gérer la collision
+	; Si on arrive ici : bumpers pressés, gérer la collision
+	
+	; Arrêter le chronomètre et calculer la distance parcourue
+	BL CHRONO_STOP_DISTANCE		; r0 = distance en cm
+	
+	; Stocker la distance dans le tableau distances[r7]
+	LDR r8, =distances
+	STR r0, [r8, r7, LSL #2]	; distances[r7] = r0
+	
 	; Arrêter les moteurs avant de tourner
 	BL MOTEUR_GAUCHE_OFF
 	BL MOTEUR_DROIT_OFF
+	
+	; Faire clignoter la LED gauche N fois (N = distance en cm)
+	; r0 contient déjà la distance calculée
+	LDR r0, [r8, r7, LSL #2]	; Recharger la distance depuis distances[r7]
+	BL LED_GAUCHE_BLINK_N_TIMES
 	
 	; Rotation de 90° dans la direction choisie au démarrage
 	; r4 = 1 : rotation gauche
@@ -145,38 +153,15 @@ stop_robot
 	BL MOTEUR_DROIT_OFF
 	
 	; ========================================================================
-	; AFFICHAGE DU MESSAGE SUR L'ÉCRAN OLED
-	; ========================================================================
 	; 4. ARRÊT DU ROBOT APRÈS 4 ROTATIONS
 	; ========================================================================
+	; ARRÊT FINAL APRÈS 4 ROTATIONS
+	; ========================================================================
 	; Arrêter les moteurs
-	BL MOTEUR_DROIT_OFF
 	BL MOTEUR_GAUCHE_OFF
+	BL MOTEUR_DROIT_OFF
 	
-	; Afficher message de fin sur l'écran OLED
-	; Ligne 1 : "4 ROTATIONS"
-	; Ligne 2 : "TERMINE!"
-	BL OLED_CLEAR
-	
-	; Position curseur ligne 1 (page 0)
-	MOV r0, #0				; Colonne 0
-	MOV r1, #0				; Page 0 (ligne du haut)
-	BL OLED_SET_CURSOR
-	
-	; Afficher "4 ROTATIONS"
-	LDR r0, =finish_msg
-	BL OLED_WRITE_STRING
-	
-	; Position curseur ligne 2 (page 1)
-	MOV r0, #0				; Colonne 0
-	MOV r1, #1				; Page 1 (ligne du bas)
-	BL OLED_SET_CURSOR
-	
-	; Afficher "TERMINE!"
-	LDR r0, =done_msg
-	BL OLED_WRITE_STRING
-	
-	; Boucle infinie : le robot reste arrêté avec le message affiché
+	; Boucle infinie : le robot reste arrêté
 end_loop
 	B end_loop
 

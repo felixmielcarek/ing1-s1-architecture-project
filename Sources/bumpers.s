@@ -10,6 +10,9 @@ GPIO_PORTE_BASE		EQU		0x40024000 ; GPIO Port E (ABP) base : 0x4002.4000 (p291 da
 ; To use the pin as a digital input or output, the corresponding GPIODEN bit must be set.
 GPIO_O_DEN  		EQU 	0x0000051C  ; GPIO Digital Enable (p437 datasheet de lm3s9B92.pdf)
 
+; Direction register (0=input, 1=output)
+GPIO_O_DIR			EQU		0x00000400	; GPIO Direction
+
 ; Pul_up
 GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432 datasheet de lm3s9B92.pdf)
 	
@@ -49,17 +52,21 @@ BUMPERS_INIT
 	nop
 	nop
 	
-	;setup bumpers
+	; Configurer PE0 et PE1 en INPUT (bit à 0)
+	ldr r6, = GPIO_PORTE_BASE+GPIO_O_DIR
+	ldr r0, [r6]
+	BIC r0, r0, #0x03						;; Clear bits 0 et 1 (INPUT)
+	str r0, [r6]
+	
+	;setup bumpers pull-up
 	ldr r6, = GPIO_PORTE_BASE+GPIO_I_PUR    ;; Pul_up
 	ldr r0, = BROCHE0_1	
 	str r0, [r6]
 	
+	; Enable Digital Function
 	ldr r6, = GPIO_PORTE_BASE+GPIO_O_DEN    ;; Enable Digital Function 
 	ldr r0, = BROCHE0_1	
 	str r0, [r6]
-	
-	ldr r9, = GPIO_PORTE_BASE + (BROCHE0<<2)
-	ldr r8, = GPIO_PORTE_BASE + (BROCHE1<<2)
 	
 	BX LR
 
@@ -94,22 +101,19 @@ READ_BUMPER2
 ; ============================================================================
 ; Lit PE0 et PE1 simultanément
 ; 
-; Valeurs possibles de r5 :
+; Valeurs possibles de r0 (retour) :
 ; - 0x03 (0b11) : Aucun bumper pressé (les deux à 1 grâce au pull-up)
 ; - 0x02 (0b10) : Bumper 1 pressé (PE0=0), bumper 2 non pressé (PE1=1)
 ; - 0x01 (0b01) : Bumper 1 non pressé (PE0=1), bumper 2 pressé (PE1=0)
 ; - 0x00 (0b00) : Les deux bumpers pressés
 ;
-; Retour : r5 = valeur lue sur PE1:PE0
-;          Flag Z = 1 si les deux bumpers pressés (r5==0)
-;          Flag Z = 0 si au moins un bumper non pressé (r5!=0)
+; Retour : r0 = valeur lue sur PE1:PE0 (CONVENTION ARM: retour dans r0)
 ; ============================================================================
 READ_BUMPERS
-	;lecture des deux ports en meme temps
-	ldr r8, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
-	ldr r5, [r8]
-	cmp r5,#0x00
-	BX LR
+	PUSH {r4, LR}							; Sauvegarder registres préservés
+	ldr r4, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
+	ldr r0, [r4]							; Lire dans r0 (retour)
+	POP {r4, PC}							; Restaurer et retourner
 
 ;fin du programme
 	NOP

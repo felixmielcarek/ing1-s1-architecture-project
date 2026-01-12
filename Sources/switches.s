@@ -64,24 +64,14 @@ SWITCHES_INIT
 	nop
 	nop
 	
-	; Direction : INPUT (par défaut, mais on s'assure que les bits sont à 0)
-	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DIR
-	ldr r0, [r6]
-	BIC r0, r0, #SWITCHES_BOTH				; Clear bits 6 et 7 pour INPUT
-	str r0, [r6]
-	
 	; Activer les pull-ups sur PD6 et PD7
 	ldr r6, = GPIO_PORTD_BASE+GPIO_I_PUR
-	ldr r0, [r6]
-	ORR r0, r0, #SWITCHES_BOTH	
+	ldr r0, = SWITCHES_BOTH	
 	str r0, [r6]
 	
 	; Activer la fonction digitale sur PD6 et PD7
 	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DEN
-	ldr r0, [r6]
-	ORR r0, r0, #SWITCHES_BOTH	
-	str r0, [r6]
-	
+	ldr r0, = SWITCHES_BOTH
 	BX LR
 
 ; ============================================================================
@@ -121,13 +111,17 @@ WAIT_SWITCH_PRESS
 	PUSH {LR}				; Save LR because non-leaf-function
 	
 WAIT_LOOP
-	; Vérifier Switch 1
-	BL READ_SWITCH1
-	BEQ SWITCH1_PRESSED		; Si pressé (r5==0), aller à SWITCH1_PRESSED
+	; Lire Switch 1 (PD6)
+	ldr r6, = GPIO_PORTD_BASE + (SWITCH1<<2)
+	ldr r10, [r6]
+	CMP r10, #0x00
+	BEQ SWITCH1_PRESSED		; Si = 0x00, switch 1 pressé
 	
-	; Vérifier Switch 2
-	BL READ_SWITCH2
-	BEQ SWITCH2_PRESSED		; Si pressé (r5==0), aller à SWITCH2_PRESSED
+	; Lire Switch 2 (PD7)
+	ldr r6, = GPIO_PORTD_BASE + (SWITCH2<<2)
+	ldr r10, [r6]
+	CMP r10, #0x00
+	BEQ SWITCH2_PRESSED		; Si = 0x00, switch 2 pressé
 	
 	; Aucun switch pressé, reboucler
 	B WAIT_LOOP
