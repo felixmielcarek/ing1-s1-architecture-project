@@ -410,16 +410,6 @@
               <FilePath>.\Sources\timer.s</FilePath>
             </File>
             <File>
-              <FileName>buzzer.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>.\Sources\buzzer.s</FilePath>
-            </File>
-            <File>
-              <FileName>oled-screen.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>.\Sources\oled-screen.s</FilePath>
-            </File>
-            <File>
               <FileName>engine.s</FileName>
               <FileType>2</FileType>
               <FilePath>.\Sources\engine.s</FilePath>

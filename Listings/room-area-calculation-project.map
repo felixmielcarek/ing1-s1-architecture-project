@@ -10,6 +10,7 @@ Section Cross References
     main.o(.text) refers to leds.o(.text) for LEDS_INIT
     main.o(.text) refers to timer.o(.text) for CHRONO_START
     main.o(.text) refers to main.o(myData) for distances
+    timer.o(.text) refers to timer.o(myTimerData) for chrono_periods
     engine.o(.text) refers to timer.o(.text) for DELAY_MILLISECONDS
     startup.o(RESET) refers to startup.o(STACK) for StackMem
     startup.o(RESET) refers to main.o(.text) for __main
@@ -19,13 +20,10 @@ Section Cross References
 
 Removing Unused input sections from the image.
 
-    Removing buzzer.o(.text), (0 bytes).
-    Removing oled-screen.o(.text), (592 bytes).
-    Removing oled-screen.o(myData), (36 bytes).
     Removing startup.o(HEAP), (0 bytes).
     Removing startup.o(.text), (0 bytes).
 
-5 unused section(s) (total 628 bytes) removed from the image.
+2 unused section(s) (total 0 bytes) removed from the image.
 
 ==============================================================================
 
@@ -40,63 +38,64 @@ Image Symbol Table
     Sources/engine.s                         0x00000000   Number         0  engine.o ABSOLUTE
     Sources/leds.s                           0x00000000   Number         0  leds.o ABSOLUTE
     Sources/main.s                           0x00000000   Number         0  main.o ABSOLUTE
-    Sources/oled-screen.s                    0x00000000   Number         0  oled-screen.o ABSOLUTE
     Sources/switches.s                       0x00000000   Number         0  switches.o ABSOLUTE
     Sources/timer.s                          0x00000000   Number         0  timer.o ABSOLUTE
     RESET                                    0x00000000   Section      632  startup.o(RESET)
     NmiSR                                    0x00000271   Thumb Code     0  startup.o(RESET)
     FaultISR                                 0x00000273   Thumb Code     0  startup.o(RESET)
     IntDefaultHandler                        0x00000275   Thumb Code     0  startup.o(RESET)
-    .text                                    0x00000278   Section      136  main.o(.text)
-    .text                                    0x00000300   Section      128  bumpers.o(.text)
-    .text                                    0x00000380   Section      132  leds.o(.text)
-    .text                                    0x00000404   Section      120  switches.o(.text)
-    .text                                    0x0000047c   Section      200  timer.o(.text)
-    .text                                    0x00000544   Section      600  engine.o(.text)
+    .text                                    0x00000278   Section      160  main.o(.text)
+    .text                                    0x00000318   Section      128  bumpers.o(.text)
+    .text                                    0x00000398   Section      132  leds.o(.text)
+    .text                                    0x0000041c   Section      120  switches.o(.text)
+    .text                                    0x00000494   Section      244  timer.o(.text)
+    .text                                    0x00000588   Section      600  engine.o(.text)
     distances                                0x20000000   Data          16  main.o(myData)
     myData                                   0x20000000   Section       16  main.o(myData)
-    StackMem                                 0x20000010   Data           0  startup.o(STACK)
-    STACK                                    0x20000010   Section      256  startup.o(STACK)
+    chrono_periods                           0x20000010   Data           4  timer.o(myTimerData)
+    myTimerData                              0x20000010   Section        4  timer.o(myTimerData)
+    StackMem                                 0x20000018   Data           0  startup.o(STACK)
+    STACK                                    0x20000018   Section      256  startup.o(STACK)
 
     Global Symbols
 
     Symbol Name                              Value     Ov Type        Size  Object(Section)
 
-    BuildAttributes$$THM_ISAv4$P$D$K$B$S$A:L22UL41UL21$X:L11$S22US41US21$IEEE1$IW$~IW$USESV6$~STKCKD$USESV7$~SHL$OSPACE$EBA8$MICROLIB$REQ8$EABIv2 0x00000000   Number         0  anon$$obj.o ABSOLUTE
+    BuildAttributes$$THM_ISAv4$P$D$K$B$S$A:L22UL41UL21$X:L11$S22US41US21$IEEE1$~IW$USESV6$~STKCKD$USESV7$~SHL$OSPACE$EBA8$MICROLIB$EABIv2 0x00000000   Number         0  anon$$obj.o ABSOLUTE
     __Vectors                                0x00000000   Data           0  startup.o(RESET)
     Reset_Handler                            0x0000026d   Thumb Code     0  startup.o(RESET)
     __main                                   0x00000279   Thumb Code     0  main.o(.text)
-    BUMPERS_INIT                             0x00000301   Thumb Code     0  bumpers.o(.text)
-    READ_BUMPER1                             0x00000333   Thumb Code     0  bumpers.o(.text)
-    READ_BUMPER2                             0x00000345   Thumb Code     0  bumpers.o(.text)
-    READ_BUMPERS                             0x00000357   Thumb Code     0  bumpers.o(.text)
-    LEDS_INIT                                0x00000381   Thumb Code     0  leds.o(.text)
-    LED_GAUCHE_BLINK_N_TIMES                 0x000003b9   Thumb Code     0  leds.o(.text)
-    SWITCHES_INIT                            0x00000405   Thumb Code     0  switches.o(.text)
-    READ_SWITCH1                             0x0000042d   Thumb Code     0  switches.o(.text)
-    READ_SWITCH2                             0x00000437   Thumb Code     0  switches.o(.text)
-    WAIT_SWITCH_PRESS                        0x00000441   Thumb Code     0  switches.o(.text)
-    GET_ROTATION_DIRECTION                   0x00000461   Thumb Code     0  switches.o(.text)
-    CHRONO_START                             0x0000047d   Thumb Code     0  timer.o(.text)
-    CHRONO_STOP                              0x0000049f   Thumb Code     0  timer.o(.text)
-    CYCLES_TO_DISTANCE                       0x000004b5   Thumb Code     0  timer.o(.text)
-    CHRONO_STOP_DISTANCE                     0x000004d1   Thumb Code     0  timer.o(.text)
-    CHRONO_GET_CYCLES                        0x000004dd   Thumb Code     0  timer.o(.text)
-    DELAY_MILLISECONDS                       0x000004eb   Thumb Code     0  timer.o(.text)
-    MOTEUR_INIT                              0x00000545   Thumb Code     0  engine.o(.text)
-    MOTEUR_DROIT_ON                          0x00000651   Thumb Code     0  engine.o(.text)
-    MOTEUR_DROIT_OFF                         0x0000065f   Thumb Code     0  engine.o(.text)
-    MOTEUR_GAUCHE_ON                         0x0000066d   Thumb Code     0  engine.o(.text)
-    MOTEUR_GAUCHE_OFF                        0x0000067b   Thumb Code     0  engine.o(.text)
-    MOTEUR_DROIT_ARRIERE                     0x00000689   Thumb Code     0  engine.o(.text)
-    MOTEUR_DROIT_AVANT                       0x00000695   Thumb Code     0  engine.o(.text)
-    MOTEUR_GAUCHE_ARRIERE                    0x000006a1   Thumb Code     0  engine.o(.text)
-    MOTEUR_GAUCHE_AVANT                      0x000006ad   Thumb Code     0  engine.o(.text)
-    MOTEUR_DROIT_INVERSE                     0x000006b9   Thumb Code     0  engine.o(.text)
-    MOTEUR_GAUCHE_INVERSE                    0x000006c7   Thumb Code     0  engine.o(.text)
-    ROTATION_90_GAUCHE                       0x000006e9   Thumb Code     0  engine.o(.text)
-    ROTATION_90_DROITE                       0x00000709   Thumb Code     0  engine.o(.text)
-    __initial_sp                             0x20000110   Data           0  startup.o(STACK)
+    BUMPERS_INIT                             0x00000319   Thumb Code     0  bumpers.o(.text)
+    READ_BUMPER1                             0x0000034b   Thumb Code     0  bumpers.o(.text)
+    READ_BUMPER2                             0x0000035d   Thumb Code     0  bumpers.o(.text)
+    READ_BUMPERS                             0x0000036f   Thumb Code     0  bumpers.o(.text)
+    LEDS_INIT                                0x00000399   Thumb Code     0  leds.o(.text)
+    LED_GAUCHE_BLINK_N_TIMES                 0x000003d1   Thumb Code     0  leds.o(.text)
+    SWITCHES_INIT                            0x0000041d   Thumb Code     0  switches.o(.text)
+    READ_SWITCH1                             0x00000445   Thumb Code     0  switches.o(.text)
+    READ_SWITCH2                             0x0000044f   Thumb Code     0  switches.o(.text)
+    WAIT_SWITCH_PRESS                        0x00000459   Thumb Code     0  switches.o(.text)
+    GET_ROTATION_DIRECTION                   0x00000479   Thumb Code     0  switches.o(.text)
+    CHRONO_START                             0x00000495   Thumb Code     0  timer.o(.text)
+    CHRONO_STOP                              0x000004c3   Thumb Code     0  timer.o(.text)
+    CHRONO_GET_TIME_MS                       0x000004e5   Thumb Code     0  timer.o(.text)
+    MILLISECONDS_TO_DISTANCE                 0x0000050d   Thumb Code     0  timer.o(.text)
+    CHRONO_STOP_DISTANCE                     0x00000523   Thumb Code     0  timer.o(.text)
+    DELAY_MILLISECONDS                       0x0000052f   Thumb Code     0  timer.o(.text)
+    MOTEUR_INIT                              0x00000589   Thumb Code     0  engine.o(.text)
+    MOTEUR_DROIT_ON                          0x00000695   Thumb Code     0  engine.o(.text)
+    MOTEUR_DROIT_OFF                         0x000006a3   Thumb Code     0  engine.o(.text)
+    MOTEUR_GAUCHE_ON                         0x000006b1   Thumb Code     0  engine.o(.text)
+    MOTEUR_GAUCHE_OFF                        0x000006bf   Thumb Code     0  engine.o(.text)
+    MOTEUR_DROIT_ARRIERE                     0x000006cd   Thumb Code     0  engine.o(.text)
+    MOTEUR_DROIT_AVANT                       0x000006d9   Thumb Code     0  engine.o(.text)
+    MOTEUR_GAUCHE_ARRIERE                    0x000006e5   Thumb Code     0  engine.o(.text)
+    MOTEUR_GAUCHE_AVANT                      0x000006f1   Thumb Code     0  engine.o(.text)
+    MOTEUR_DROIT_INVERSE                     0x000006fd   Thumb Code     0  engine.o(.text)
+    MOTEUR_GAUCHE_INVERSE                    0x0000070b   Thumb Code     0  engine.o(.text)
+    ROTATION_90_GAUCHE                       0x0000072d   Thumb Code     0  engine.o(.text)
+    ROTATION_90_DROITE                       0x0000074d   Thumb Code     0  engine.o(.text)
+    __initial_sp                             0x20000118   Data           0  startup.o(STACK)
 
 
 
@@ -106,33 +105,34 @@ Memory Map of the image
 
   Image Entry point : 0x0000026d
 
-  Load Region LR_1 (Base: 0x00000000, Size: 0x000007ac, Max: 0xffffffff, ABSOLUTE)
+  Load Region LR_1 (Base: 0x00000000, Size: 0x000007f4, Max: 0xffffffff, ABSOLUTE)
 
-    Execution Region ER_RO (Exec base: 0x00000000, Load base: 0x00000000, Size: 0x0000079c, Max: 0xffffffff, ABSOLUTE)
-
-    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
-
-    0x00000000   0x00000000   0x00000278   Code   RO           30  * RESET               startup.o
-    0x00000278   0x00000278   0x00000088   Code   RO            1  * .text               main.o
-    0x00000300   0x00000300   0x00000080   Code   RO            7    .text               bumpers.o
-    0x00000380   0x00000380   0x00000084   Code   RO           10    .text               leds.o
-    0x00000404   0x00000404   0x00000078   Code   RO           13    .text               switches.o
-    0x0000047c   0x0000047c   0x000000c8   Code   RO           16    .text               timer.o
-    0x00000544   0x00000544   0x00000258   Code   RO           25  * .text               engine.o
-
-
-    Execution Region ER_RW (Exec base: 0x20000000, Load base: 0x0000079c, Size: 0x00000010, Max: 0xffffffff, ABSOLUTE)
+    Execution Region ER_RO (Exec base: 0x00000000, Load base: 0x00000000, Size: 0x000007e0, Max: 0xffffffff, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x20000000   0x0000079c   0x00000010   Data   RW            2    myData              main.o
+    0x00000000   0x00000000   0x00000278   Code   RO           25  * RESET               startup.o
+    0x00000278   0x00000278   0x000000a0   Code   RO            1  * .text               main.o
+    0x00000318   0x00000318   0x00000080   Code   RO            7    .text               bumpers.o
+    0x00000398   0x00000398   0x00000084   Code   RO           10    .text               leds.o
+    0x0000041c   0x0000041c   0x00000078   Code   RO           13    .text               switches.o
+    0x00000494   0x00000494   0x000000f4   Code   RO           16    .text               timer.o
+    0x00000588   0x00000588   0x00000258   Code   RO           20  * .text               engine.o
 
 
-    Execution Region ER_ZI (Exec base: 0x20000010, Load base: 0x000007ac, Size: 0x00000100, Max: 0xffffffff, ABSOLUTE)
+    Execution Region ER_RW (Exec base: 0x20000000, Load base: 0x000007e0, Size: 0x00000014, Max: 0xffffffff, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x20000010        -       0x00000100   Zero   RW           28    STACK               startup.o
+    0x20000000   0x000007e0   0x00000010   Data   RW            2    myData              main.o
+    0x20000010   0x000007f0   0x00000004   Data   RW           17    myTimerData         timer.o
+
+
+    Execution Region ER_ZI (Exec base: 0x20000018, Load base: 0x000007f4, Size: 0x00000100, Max: 0xffffffff, ABSOLUTE)
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x20000018        -       0x00000100   Zero   RW           23    STACK               startup.o
 
 
 ==============================================================================
@@ -145,13 +145,13 @@ Image component sizes
        128         30          0          0          0        276   bumpers.o
        600        114          0          0          0        428   engine.o
        132         28          0          0          0        276   leds.o
-       136          4          0         16          0        312   main.o
+       160          6          0         16          0        324   main.o
        632        622          0          0        256        268   startup.o
        120         20          0          0          0        288   switches.o
-       200         20          0          0          0        308   timer.o
+       244         20          0          4          0        324   timer.o
 
     ----------------------------------------------------------------------
-      1948        838          0         16        256       2156   Object Totals
+      2016        840          0         20        256       2184   Object Totals
          0          0          0          0          0          0   (incl. Generated)
          0          0          0          0          0          0   (incl. Padding)
 
@@ -166,15 +166,15 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-      1948        838          0         16        256       2156   Grand Totals
-      1948        838          0         16        256       2156   ELF Image Totals
-      1948        838          0         16          0          0   ROM Totals
+      2016        840          0         20        256       2184   Grand Totals
+      2016        840          0         20        256       2184   ELF Image Totals
+      2016        840          0         20          0          0   ROM Totals
 
 ==============================================================================
 
-    Total RO  Size (Code + RO Data)                 1948 (   1.90kB)
-    Total RW  Size (RW Data + ZI Data)               272 (   0.27kB)
-    Total ROM Size (Code + RO Data + RW Data)       1964 (   1.92kB)
+    Total RO  Size (Code + RO Data)                 2016 (   1.97kB)
+    Total RW  Size (RW Data + ZI Data)               276 (   0.27kB)
+    Total ROM Size (Code + RO Data + RW Data)       2036 (   1.99kB)
 
 ==============================================================================
 

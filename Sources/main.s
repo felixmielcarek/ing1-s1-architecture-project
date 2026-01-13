@@ -17,6 +17,7 @@ MAX_ROTATIONS	EQU		4		; Nombre maximum de rotations avant arrêt
 	IMPORT MOTEUR_GAUCHE_OFF
 	IMPORT MOTEUR_DROIT_OFF
 		
+
 	IMPORT MOTEUR_DROIT_AVANT
 	IMPORT MOTEUR_GAUCHE_AVANT
 
@@ -105,18 +106,13 @@ check_bumpers
 	; Arrêter le chronomètre et calculer la distance parcourue
 	BL CHRONO_STOP_DISTANCE		; r0 = distance en cm
 	
-	; Stocker la distance dans le tableau distances[r7]
+	; Stocker immédiatement la distance dans le tableau
 	LDR r8, =distances
 	STR r0, [r8, r7, LSL #2]	; distances[r7] = r0
 	
 	; Arrêter les moteurs avant de tourner
 	BL MOTEUR_GAUCHE_OFF
 	BL MOTEUR_DROIT_OFF
-	
-	; Faire clignoter la LED gauche N fois (N = distance en cm)
-	; r0 contient déjà la distance calculée
-	LDR r0, [r8, r7, LSL #2]	; Recharger la distance depuis distances[r7]
-	BL LED_GAUCHE_BLINK_N_TIMES
 	
 	; Rotation de 90° dans la direction choisie au démarrage
 	; r4 = 1 : rotation gauche
@@ -154,9 +150,25 @@ stop_robot
 	BL MOTEUR_DROIT_OFF
 	
 	; ========================================================================
-	; 4. ARRÊT DU ROBOT APRÈS 4 ROTATIONS
+	; CALCUL DE LA SOMME TOTALE DES DISTANCES
 	; ========================================================================
-	; ARRÊT FINAL APRÈS 4 ROTATIONS
+	; Additionner les 4 distances parcourues avant chaque rotation
+	LDR r8, =distances
+	
+	; Charger et additionner les 4 distances
+	LDR r0, [r8, #0]			; distances[0]
+	LDR r1, [r8, #4]			; distances[1]
+	ADD r0, r0, r1				; Somme partielle
+	LDR r1, [r8, #8]			; distances[2]
+	ADD r0, r0, r1				; Somme partielle
+	LDR r1, [r8, #12]			; distances[3]
+	ADD r0, r0, r1				; r0 = somme totale
+	
+	; Faire clignoter la LED gauche N fois (N = somme des distances)
+	BL LED_GAUCHE_BLINK_N_TIMES
+	
+	; ========================================================================
+	; ARRÊT FINAL
 	; ========================================================================
 	; Arrêter les moteurs
 	BL MOTEUR_GAUCHE_OFF

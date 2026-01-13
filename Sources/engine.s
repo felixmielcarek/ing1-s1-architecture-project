@@ -66,7 +66,10 @@ VITESSE			EQU		0x192	; Valeures plus petites => Vitesse plus rapide exemple 0x19
 ; IMPORTANT : L'horloge CPU par défaut du LM3S1968 est 16 MHz (oscillateur RC interne)
 ; Sans configuration de la PLL, le système tourne à 16 MHz
 ; Avec CPU à 16 MHz, SysTick compte de (1600000-1) à 0 = 0.1 seconde
-ROTATION_TIME	EQU		0x23	; 35 itérations x 0.1s = 3.5 secondes
+;ROTATION_TIME	EQU		0x23	; 35 itérations x 0.1s = 3.5 secondes
+;ROTATION_TIME	EQU		0x22	; 32 itérations x 0.1s = 3.4 secondes
+ROTATION_TIME	EQU		0x21	; 32 itérations x 0.1s = 3.3 secondes
+;ROTATION_TIME	EQU		0x20	; 32 itérations x 0.1s = 3.2 secondes
 ;ROTATION_TIME	EQU		0x1E	; 30 itérations x 0.1s = 3.0 secondes
 ;ROTATION_TIME	EQU		0x32	; 50 itérations x 0.1s = 5.0 secondes
 

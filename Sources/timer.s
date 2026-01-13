@@ -10,228 +10,219 @@ SYSTICK_LOAD		EQU 0xE000E014	; SysTick Reload Value
 SYSTICK_VAL			EQU 0xE000E018	; SysTick Current Value
 
 F_CPU_REAL			EQU 16000000	; 16 MHz
-ROBOT_SPEED_CM_S	EQU 3			; 3 cm/s
+ROBOT_SPEED_CM_S	EQU 2			; 2 cm/s
+
+; Période de mesure (100ms) - MÊME PRINCIPE pour CHRONO et DELAY
+PERIOD_MS			EQU 100			; Période de 100ms
+PERIOD_RELOAD		EQU 1600000-1	; Cycles pour 100ms à 16MHz
+
+; =========== VARIABLES GLOBALES ===========
+	AREA myTimerData, DATA, READWRITE
+chrono_periods		DCD 0			; Compteur de périodes de 100ms écoulées
 
 ; =========== FONCTIONS EXPORTÉES ===========
+	AREA    |.text|, CODE, READONLY
 	EXPORT CHRONO_START
 	EXPORT CHRONO_STOP
 	EXPORT CHRONO_STOP_DISTANCE
-	EXPORT CHRONO_GET_CYCLES
-	EXPORT CYCLES_TO_DISTANCE
+	EXPORT CHRONO_GET_TIME_MS
+	EXPORT MILLISECONDS_TO_DISTANCE
 	EXPORT DELAY_MILLISECONDS
 
 ; ============================================================================
 ; CHRONO_START - Démarre le chronomètre
 ; ============================================================================
-; Configure SysTick en mode compte à rebours pour mesurer le temps écoulé.
+; Configure SysTick pour compter vers 0 depuis 0xFFFFFF (mode continu)
 ;
-; Registres modifiés: R0, R1
+; Registres modifiés: R0, R6
 ; Retour: Aucun
 ; ============================================================================
 CHRONO_START
-	; Arrêter SysTick
-	LDR R0, =SYSTICK_CTRL
-	MOV R1, #0x00
-	STR R1, [R0]
+	PUSH {R6}
 	
-	; Charger valeur maximale (24-bit = 0xFFFFFF)
-	LDR R0, =SYSTICK_LOAD
-	LDR R1, =0x00FFFFFF
-	STR R1, [R0]
+	; Arrêter SysTick pendant configuration
+	LDR R6, =SYSTICK_CTRL
+	MOV R0, #0
+	STR R0, [R6]
 	
-	; Réinitialiser le compteur à 0
+	; Charger valeur maximale (compte sur 24 bits)
+	LDR R6, =SYSTICK_LOAD
+	LDR R0, =0xFFFFFF
+	STR R0, [R6]
+	
+	; Réinitialiser le compteur à sa valeur maximale
+	LDR R6, =SYSTICK_VAL
+	MOV R0, #0
+	STR R0, [R6]
+	
+	; Démarrer SysTick (Enable + CLK_SRC)
+	LDR R6, =SYSTICK_CTRL
+	MOV R0, #0x05
+	STR R0, [R6]
+	
+	; Sauvegarder le temps de départ
+	LDR R6, =chrono_periods
 	LDR R0, =SYSTICK_VAL
-	MOV R1, #0x00
-	STR R1, [R0]
+	LDR R0, [R0]
+	STR R0, [R6]				; chrono_periods = valeur initiale
 	
-	; Démarrer SysTick (enable + horloge processeur)
-	LDR R0, =SYSTICK_CTRL
-	MOV R1, #0x05			; Enable + CLK_SRC
-	STR R1, [R0]
-	
+	POP {R6}
 	BX LR
 
 ; ============================================================================
-; CHRONO_STOP - Arrête le chronomètre et retourne le temps écoulé
+; CHRONO_STOP - Arrête le chronomètre et retourne le temps en millisecondes
 ; ============================================================================
-; Arrête SysTick et retourne le nombre de cycles écoulés depuis CHRONO_START.
-; Cette fonction sépare la mesure du temps du calcul de distance.
+; Calcule cycles écoulés = (valeur_départ - valeur_actuelle)
+; Puis convertit en millisecondes
 ;
-; Avantages :
-; - Réutilisable pour d'autres calculs (vitesse, accélération, etc.)
-; - Permet de stocker le temps avant conversion
-; - Plus flexible que CHRONO_STOP_DISTANCE
-;
-; Registres modifiés: R0, R1, R2
-; Retour: R0 = nombre de cycles écoulés depuis CHRONO_START
+; Registres modifiés: R0, R1, R2, R6
+; Retour: R0 = temps écoulé en millisecondes
 ; ============================================================================
 CHRONO_STOP
-	; Lire la valeur actuelle du SysTick
-	LDR R0, =SYSTICK_VAL
-	LDR R1, [R0]
+	PUSH {R2, R6}
+	
+	; Lire la valeur actuelle
+	LDR R6, =SYSTICK_VAL
+	LDR R1, [R6]				; R1 = valeur actuelle (compte à rebours)
 	
 	; Arrêter SysTick
-	LDR R0, =SYSTICK_CTRL
-	MOV R2, #0
-	STR R2, [R0]
+	LDR R6, =SYSTICK_CTRL
+	MOV R0, #0
+	STR R0, [R6]
 	
-	; Calculer les cycles écoulés = valeur_max - valeur_actuelle
-	LDR R2, =0x00FFFFFF
-	SUB R0, R2, R1			; R0 = cycles écoulés
+	; Calculer cycles écoulés = valeur_départ - valeur_actuelle
+	LDR R6, =chrono_periods
+	LDR R0, [R6]				; R0 = valeur de départ
+	SUB R2, R0, R1				; R2 = cycles écoulés
 	
+	; Convertir cycles → millisecondes
+	; temps_ms = cycles / (16000000 / 1000) = cycles / 16000
+	LDR R1, =16000
+	UDIV R0, R2, R1
+	
+	POP {R2, R6}
 	BX LR
 
 ; ============================================================================
-; CYCLES_TO_DISTANCE - Convertit des cycles CPU en distance (cm)
+; CHRONO_GET_TIME_MS - Retourne le temps écoulé sans arrêter le chrono
 ; ============================================================================
-; Convertit un nombre de cycles CPU en distance parcourue en centimètres,
-; en fonction de la vitesse du robot (3 cm/s) et de la fréquence CPU (16 MHz).
-;
-; FORMULE:
-; Distance (cm) = Vitesse (cm/s) × Temps (s)
-; Distance = 3 cm/s × (cycles / 16000000 cycles/s)
-; Distance = (3 × cycles) / 16000000
-;
-; Méthode avec précision en millimètres :
-; Distance_mm = (30 × cycles) / 16000000
-; Distance_cm = Distance_mm / 10
-;
-; Paramètres:
-; R0 = nombre de cycles écoulés
-;
-; Registres modifiés: R0, R1
-; Retour: R0 = distance parcourue en centimètres (arrondi)
+; Registres modifiés: R0, R1, R6
+; Retour: R0 = temps écoulé en millisecondes
 ; ============================================================================
-CYCLES_TO_DISTANCE
+CHRONO_GET_TIME_MS
+	PUSH {R6}
+	
+	; Lire COUNTFLAG
+	LDR R6, =SYSTICK_CTRL
+	LDR R0, [R6]
+	TST R0, #(1 << 16)
+	
+	; Si COUNTFLAG=1, incrémenter
+	BEQ CHRONO_GET_NO_INCREMENT
+	
+	LDR R6, =chrono_periods
+	LDR R0, [R6]
+	ADD R0, R0, #1
+	STR R0, [R6]
+	B CHRONO_GET_CONVERT
+
+CHRONO_GET_NO_INCREMENT
+	LDR R6, =chrono_periods
+	LDR R0, [R6]
+
+CHRONO_GET_CONVERT
+	; Convertir périodes → millisecondes
+	MOV R1, #PERIOD_MS
+	MUL R0, R1, R0
+	
+	POP {R6}
+	BX LR
+
+; ============================================================================
+; MILLISECONDS_TO_DISTANCE - Convertit millisecondes en distance (cm)
+; ============================================================================
+; FORMULE SIMPLE : Distance = (3 cm/s) × (temps_ms / 1000)
+;
+; Paramètres: R0 = temps en millisecondes
+; Retour: R0 = distance en centimètres
+; ============================================================================
+MILLISECONDS_TO_DISTANCE
 	PUSH {R2, LR}
 	
-	MOV R2, R0				; Sauvegarder cycles dans R2
+	MOV R2, R0
 	
-	; Calculer la distance en millimètres pour plus de précision
-	; Distance_mm = (30 × cycles) / 16000000
-	; (30 = 3 cm/s × 10 mm/cm)
-	MOV R0, #30
-	MUL R0, R2, R0			; R0 = 30 × cycles
+	; Distance = (3 × temps_ms) / 1000
+	MOV R0, #ROBOT_SPEED_CM_S
+	MUL R0, R2, R0
 	
-	; Diviser par la fréquence CPU pour obtenir des millimètres
-	LDR R1, =F_CPU_REAL
-	UDIV R0, R0, R1			; R0 = distance en millimètres
-	
-	; Convertir en centimètres (diviser par 10)
-	MOV R1, #10
-	UDIV R0, R0, R1			; R0 = distance en centimètres
+	MOV R1, #1000
+	UDIV R0, R0, R1
 	
 	POP {R2, PC}
 
 ; ============================================================================
-; CHRONO_STOP_DISTANCE - Arrête le chrono et calcule la distance parcourue
+; CHRONO_STOP_DISTANCE - Arrête le chrono et calcule la distance
 ; ============================================================================
-; Fonction de compatibilité qui combine CHRONO_STOP + CYCLES_TO_DISTANCE.
-; Arrête le chronomètre et calcule directement la distance en centimètres.
+; CHRONO_STOP → millisecondes → MILLISECONDS_TO_DISTANCE → centimètres
 ;
-; Cette fonction est conservée pour la compatibilité avec le code existant.
-; Pour plus de flexibilité, utilisez CHRONO_STOP puis CYCLES_TO_DISTANCE.
-;
-; Registres modifiés: R0, R1, R2, R3
-; Retour: R0 = distance parcourue en centimètres (arrondi)
+; Retour: R0 = distance en centimètres
 ; ============================================================================
 CHRONO_STOP_DISTANCE
 	PUSH {LR}
 	
-	; Arrêter le chrono et obtenir les cycles
-	BL CHRONO_STOP			; R0 = cycles écoulés
-	
-	; Convertir en distance
-	BL CYCLES_TO_DISTANCE	; R0 = distance en cm
+	BL CHRONO_STOP					; R0 = temps en ms
+	BL MILLISECONDS_TO_DISTANCE		; R0 = distance en cm
 	
 	POP {PC}
 
 ; ============================================================================
-; CHRONO_GET_CYCLES - Retourne les cycles écoulés sans arrêter le chrono
-; ============================================================================
-; Fonction utilitaire pour lire le temps écoulé sans arrêter le chronomètre.
-;
-; Registres modifiés: R0, R1, R2
-; Retour: R0 = nombre de cycles écoulés
-; ============================================================================
-CHRONO_GET_CYCLES
-	; Lire la valeur actuelle du SysTick
-	LDR R0, =SYSTICK_VAL
-	LDR R1, [R0]
-	
-	; Calculer cycles = max - actuel
-	LDR R2, =0x00FFFFFF
-	SUB R0, R2, R1			; R0 = cycles écoulés
-	
-	BX LR
-
-; ============================================================================
 ; DELAY_MILLISECONDS - Génère un délai en millisecondes
 ; ============================================================================
-; Utilise SysTick pour créer un délai précis basé sur l'horloge CPU.
-; ATTENTION : Cette fonction reconfigure SysTick. Ne pas appeler pendant
-; qu'un chronomètre est actif (entre CHRONO_START et CHRONO_STOP).
-;
-; Principe :
-; - Configure SysTick pour compter 0.1 seconde (100 ms)
-; - Répète N fois selon le délai demandé
-; - Utilise le flag COUNTFLAG pour détecter la fin de chaque période
-;
-; Paramètres:
-; R0 = délai en millisecondes (multiple de 100 recommandé pour précision)
-;
-; Registres modifiés: R0, R1, R2, R3
-; Retour: Aucun
+; Paramètres: R0 = délai en millisecondes
 ; ============================================================================
 DELAY_MILLISECONDS
 	PUSH {R4, R5, LR}
 	
-	; Calculer le nombre d'itérations de 100ms
-	; Nombre d'itérations = délai_ms / 100
-	MOV R1, #100
-	UDIV R4, R0, R1			; R4 = nombre d'itérations de 100ms
+	; Calculer nombre d'itérations de 100ms
+	MOV R1, #PERIOD_MS
+	UDIV R4, R0, R1
 	
-	; Si R4 = 0, délai trop court, faire au moins 1 itération
 	CMP R4, #0
 	MOVEQ R4, #1
 	
-	; ===== Configuration SysTick pour 0.1 seconde =====
-	; Arrêter SysTick pendant configuration
+	; Arrêter SysTick
 	LDR R0, =SYSTICK_CTRL
 	MOV R1, #0
 	STR R1, [R0]
 	
-	; Charger valeur pour 0.1 seconde
-	; F_CPU = 16 MHz, 0.1s = 16000000 / 10 = 1600000 cycles
+	; Charger valeur pour 100ms
 	LDR R0, =SYSTICK_LOAD
-	LDR R1, =1600000-1
+	LDR R1, =PERIOD_RELOAD
 	STR R1, [R0]
 	
-	; Réinitialiser le compteur
+	; Réinitialiser compteur
 	LDR R0, =SYSTICK_VAL
 	MOV R1, #0
 	STR R1, [R0]
 	
-	; Démarrer SysTick (Enable + CLK_SRC, pas d'interruption)
+	; Démarrer SysTick
 	LDR R0, =SYSTICK_CTRL
-	MOV R1, #0x05			; Bit 0=ENABLE, Bit 2=CLKSOURCE
+	MOV R1, #0x05
 	STR R1, [R0]
 	
-	; ===== Boucle d'attente =====
 DELAY_LOOP
-	; Attendre que COUNTFLAG soit mis à 1 (bit 16 de CTRL)
+	; Attendre COUNTFLAG=1
 DELAY_WAIT_FLAG
 	LDR R0, =SYSTICK_CTRL
 	LDR R3, [R0]
-	TST R3, #(1 << 16)		; Tester bit 16 (COUNTFLAG)
-	BEQ DELAY_WAIT_FLAG		; Si = 0, continuer à attendre
+	TST R3, #(1 << 16)
+	BEQ DELAY_WAIT_FLAG
 	
-	; COUNTFLAG = 1, une période de 100ms s'est écoulée
-	; Décrémenter le compteur d'itérations
+	; Décrémenter
 	SUBS R4, R4, #1
-	BNE DELAY_LOOP			; Si R4 != 0, continuer
+	BNE DELAY_LOOP
 	
-	; ===== Arrêter SysTick =====
+	; Arrêter SysTick
 	LDR R0, =SYSTICK_CTRL
 	MOV R1, #0
 	STR R1, [R0]
