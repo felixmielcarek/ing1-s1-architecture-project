@@ -36,7 +36,8 @@ DELAY_COUNT			EQU 1600000		; ~1 seconde à 16 MHz
 LEDS_INIT
 	; Activer l'horloge du Port F
 	LDR R0, =SYSCTL_RCGC2
-	MOV R1, #0x20				; Bit 5 = Port F
+	LDR R1, [R0]				; Lire la valeur actuelle
+	ORR R1, R1, #0x20			; Bit 5 = Port F
 	STR R1, [R0]
 	
 	; Délai stabilisation (3 cycles minimum)
@@ -44,19 +45,22 @@ LEDS_INIT
 	NOP
 	NOP
 	
-	; Configurer PF0 et PF1 en sortie
+	; Configurer PF4 et PF5 en sortie
 	LDR R0, =GPIODIR_F
-	LDR R1, =BROCHES_LEDS
+	LDR R1, [R0]				; Lire la valeur actuelle
+	ORR R1, R1, #BROCHES_LEDS	; Activer bits 4 et 5 en sortie
 	STR R1, [R0]
 	
 	; Activer les fonctions digitales
 	LDR R0, =GPIODEN_F
-	LDR R1, =BROCHES_LEDS
+	LDR R1, [R0]				; Lire la valeur actuelle
+	ORR R1, R1, #BROCHES_LEDS	; Activer digital sur PF4 et PF5
 	STR R1, [R0]
 	
 	; Configurer l'intensité de sortie (2mA)
 	LDR R0, =GPIODR2R_F
-	LDR R1, =BROCHES_LEDS
+	LDR R1, [R0]				; Lire la valeur actuelle
+	ORR R1, R1, #BROCHES_LEDS	; Activer 2mA sur PF4 et PF5
 	STR R1, [R0]
 	
 	; Éteindre les deux LEDs au démarrage

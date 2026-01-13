@@ -68,12 +68,14 @@ SWITCHES_INIT
 	
 	; Activer les pull-ups sur PD6 et PD7
 	ldr r6, = GPIO_PORTD_BASE+GPIO_I_PUR
-	ldr r0, = SWITCHES_BOTH	
+	ldr r0, [r6]							; Lire la valeur actuelle
+	ORR r0, r0, #SWITCHES_BOTH				; Activer pull-up sur PD6 et PD7
 	str r0, [r6]
 	
 	; Activer la fonction digitale sur PD6 et PD7
 	ldr r6, = GPIO_PORTD_BASE+GPIO_O_DEN
-	ldr r0, = SWITCHES_BOTH
+	ldr r0, [r6]							; Lire la valeur actuelle
+	ORR r0, r0, #SWITCHES_BOTH				; Activer digital sur PD6 et PD7
 	str r0, [r6]
 	
 	POP {r6, PC}						; Restaurer registres et retourner
@@ -118,19 +120,19 @@ READ_SWITCH2
 ;          r0 = 2 si Switch2 pressé (rotation droite)
 ; ============================================================================
 WAIT_SWITCH_PRESS
-	PUSH {r6, r10, LR}				; Sauvegarder registres préservés
+	PUSH {r4, r5, LR}		; Sauvegarder registres préservés
 	
 WAIT_LOOP
 	; Lire Switch 1 (PD6)
-	ldr r6, = GPIO_PORTD_BASE + (SWITCH1<<2)
-	ldr r10, [r6]
-	CMP r10, #0x00
+	ldr r4, = GPIO_PORTD_BASE + (SWITCH1<<2)
+	ldr r5, [r4]
+	CMP r5, #0x00
 	BEQ SWITCH1_PRESSED		; Si = 0x00, switch 1 pressé
 	
 	; Lire Switch 2 (PD7)
-	ldr r6, = GPIO_PORTD_BASE + (SWITCH2<<2)
-	ldr r10, [r6]
-	CMP r10, #0x00
+	ldr r4, = GPIO_PORTD_BASE + (SWITCH2<<2)
+	ldr r5, [r4]
+	CMP r5, #0x00
 	BEQ SWITCH2_PRESSED		; Si = 0x00, switch 2 pressé
 	
 	; Aucun switch pressé, reboucler
@@ -138,11 +140,11 @@ WAIT_LOOP
 
 SWITCH1_PRESSED
 	MOV r0, #1				; r0 = 1 pour rotation gauche (convention AAPCS)
-	POP {r6, r10, PC}				; Restaurer registres et retourner
+	POP {r4, r5, PC}		; Restaurer registres et retourner
 
 SWITCH2_PRESSED
 	MOV r0, #2				; r0 = 2 pour rotation droite (convention AAPCS)
-	POP {r6, r10, PC}				; Restaurer registres et retourner
+	POP {r4, r5, PC}		; Restaurer registres et retourner
 
 ; ============================================================================
 ; GET_ROTATION_DIRECTION - Retourne le sens de rotation mémorisé
@@ -154,7 +156,7 @@ SWITCH2_PRESSED
 ; Retour : r0 = direction (1=gauche, 2=droite)
 ; ============================================================================
 GET_ROTATION_DIRECTION
-	MOV r0, r4				; Copier la direction vers r0 (convention ARM AAPCS)
+	MOV r0, r4				; Copier la direction vers r0
 	BX LR
 
 	NOP

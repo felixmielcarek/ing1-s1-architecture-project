@@ -39,7 +39,7 @@ GPIOPCTL_H		EQU		PORTH_BASE+0x0000052C ; GPIO Port Control (GPIOPCTL), offset 0x
 GPIOAFSEL_H		EQU		PORTH_BASE+0x00000420 ; GPIO Alternate Function Select (GPIOAFSEL), offset 0x420; p426
 
 ;; Pulse Width Modulator (PWM) configuration
-PWM_BASE		EQU		0x040028000 	   ;BASE des Block PWM p.1138
+PWM_BASE		EQU		0x40028000 	   ;BASE des Block PWM p.1138
 PWMENABLE		EQU		PWM_BASE+0x008	   ; p1145
 
 ;Block PWM0 pour sorties PWM0 et PWM1 (moteur 1)
@@ -97,6 +97,9 @@ PWM_LOAD		EQU		(F_CPU_REAL / F_PWM) / 2	; = 781 (0x30D)
 		EXPORT  MOTEUR_GAUCHE_INVERSE
 		EXPORT	ROTATION_90_GAUCHE
 		EXPORT	ROTATION_90_DROITE
+		
+		;; Import de la fonction centralisée de délai
+		IMPORT DELAY_MILLISECONDS
 
 
 MOTEUR_INIT	
@@ -255,15 +258,18 @@ MOTEUR_INIT
 		
 	;MOT2, PH1 pour sens moteur ouput
 		ldr	r6, =GPIODIR_H 
-		mov	r0,	#0x03	; 
+		ldr	r0, [r6]
+		ORR	r0,	#0x03	; PH0 et PH1 en sortie
 		str	r0,[r6]
 	;Port H, 2mA les meme
 		ldr	r6, =GPIODR2R_H
-		mov r0, #0x03	
+		ldr r0, [r6]
+		ORR r0, #0x03	
 		str	r0,[r6]
 	;Port H, Digital Enable
 		ldr	r6, =GPIODEN_H
-		mov r0, #0x03	
+		ldr r0, [r6]
+		ORR r0, #0x03	
 		str	r0,[r6]	
 	;Port H : mise à 1 pour dir 
 		ldr	r6, =(GPIODATA_H +(GPIO_1<<2))
@@ -381,104 +387,32 @@ MOTEUR_GAUCHE_INVERSE
 ; ============================================================================
 ; DELAY_90_DEG - Génère un délai temporel fixe pour rotation de 90 degrés
 ; ============================================================================
-; Utilise le SysTick Timer (timer système ARM Cortex-M3) pour créer un délai
-; précis. Le SysTick est un compteur 24-bit qui décompte de la valeur de
-; reload vers 0, puis génère un flag quand il atteint 0.
+; Utilise la fonction centralisée DELAY_MILLISECONDS du module timer.s
+; qui gère SysTick de manière cohérente avec le chronomètre.
 ;
-; Principe de fonctionnement :
-; 1. Configure SysTick pour compter 5000000 cycles (= 0.1 seconde à 50 MHz)
-; 2. Répète cette attente ROTATION_TIME fois (ex: 35 fois = 3.5 secondes)
-; 3. Chaque fois que le compteur atteint 0, le bit COUNTFLAG est mis à 1
-; 4. La lecture du registre SYST_CSR efface automatiquement le COUNTFLAG
+; Délai calculé : ROTATION_TIME × 100 millisecondes
+; Exemple : ROTATION_TIME = 35 → 3500 ms = 3.5 secondes
 ;
-; Registres SysTick utilisés :
-; - SYST_RVR (0xE000E014) = Reload Value Register : valeur de rechargement
-; - SYST_CSR (0xE000E010) = Control and Status Register : contrôle & status
+; IMPORTANT : Ne pas appeler pendant qu'un chronomètre est actif
+; (entre CHRONO_START et CHRONO_STOP_DISTANCE)
 ;
-; Registres utilisés : R0, R1, R2, R3
-; Durée totale : ROTATION_TIME x 0.1 seconde
+; Registres utilisés : R0 (paramètre pour DELAY_MILLISECONDS)
+; Durée totale : ROTATION_TIME × 100 ms
 ; ============================================================================
 DELAY_90_DEG
-		; ===== ÉTAPE 1 : Configuration de la période du SysTick =====
-		; Charger l'adresse du registre SYST_RVR (SysTick Reload Value Register)
-        LDR R0, =0xE000E014     
+		PUSH {LR}
 		
-		; Calculer la valeur de reload pour 0.1 seconde
-		; Horloge CPU RÉELLE = 16 MHz = 16 000 000 cycles/seconde
-		; (L'oscillateur RC interne par défaut du LM3S1968 est à 16 MHz)
-		; Pour 0.1 seconde : 16 000 000 / 10 = 1 600 000 cycles
-		; Le compteur va de (valeur-1) à 0, donc on charge 1600000-1 = 1599999 = 0x186A00-1 = 0x1869FF
-        LDR R1, =1600000-1      
+		; Calculer le délai en millisecondes
+		; ROTATION_TIME est en unités de 0.1 seconde (100 ms)
+		; Délai_ms = ROTATION_TIME × 100
+		MOV R0, #ROTATION_TIME
+		MOV R1, #100
+		MUL R0, R1, R0			; R0 = ROTATION_TIME × 100
 		
-		; Écrire la valeur de reload dans SYST_RVR
-        STR R1, [R0]
-
-		; ===== ÉTAPE 2 : Démarrer le SysTick Timer =====
-		; Charger l'adresse du registre SYST_CSR (Control and Status Register)
-        LDR R0, =0xE000E010     
+		; Appeler la fonction centralisée de délai
+		BL DELAY_MILLISECONDS
 		
-		; Configurer les bits de contrôle :
-		; Bit 0 (ENABLE)    = 1 : Active le compteur
-		; Bit 1 (TICKINT)   = 0 : Pas d'interruption (on utilise le polling)
-		; Bit 2 (CLKSOURCE) = 1 : Utilise l'horloge CPU (pas divisée)
-		; Valeur = 0b101 = 5
-        MOV R1, #5              
-		
-		; Démarrer le timer en écrivant dans SYST_CSR
-        STR R1, [R0]
-
-		; ===== ÉTAPE 3 : Initialiser le compteur d'itérations =====
-		; R2 servira de compteur pour le nombre de périodes de 0.1s à attendre
-        MOV R2, #ROTATION_TIME	; Ex: 35 pour attendre 3.5 secondes
-
-; ============================================================================
-; WAIT_SEC - Boucle externe : répète l'attente de 0.1 seconde plusieurs fois
-; ============================================================================
-WAIT_SEC
-		; À chaque itération de cette boucle, on attend que le SysTick
-		; compte de 5000000-1 jusqu'à 0 (= 0.1 seconde)
-
-; ============================================================================
-; WAIT_TICK - Boucle interne : attend que le COUNTFLAG soit mis à 1
-; ============================================================================
-		; Cette boucle vérifie continuellement le bit COUNTFLAG (bit 16)
-		; du registre SYST_CSR. Ce bit passe à 1 quand le compteur SysTick
-		; atteint 0, puis est automatiquement effacé quand on lit SYST_CSR.
-WAIT_TICK
-		; Lire le registre SYST_CSR dans R3
-		; IMPORTANT : Cette lecture efface automatiquement le bit COUNTFLAG
-        LDR R3, [R0]
-		
-		; Tester si le bit 16 (COUNTFLAG) est à 1
-		; TST fait un AND logique et met à jour les flags sans modifier R3
-		; Bit 16 = 0x10000 = (1 << 16)
-        TST R3, #(1 << 16)      
-		
-		; Si COUNTFLAG = 0 (timer pas encore à zéro), reboucler
-		; BEQ = Branch if Equal to zero (si le résultat du TST est 0)
-        BEQ WAIT_TICK
-		
-		; Si on arrive ici, COUNTFLAG était à 1, donc 0.1 seconde s'est écoulée
-		; Le timer SysTick se recharge automatiquement et recommence à compter
-
-		; ===== Décrémenter le compteur de périodes =====
-		; Soustraire 1 de R2 et mettre à jour les flags (SUBS au lieu de SUB)
-        SUBS R2, R2, #1
-		
-		; Si R2 != 0, on n'a pas encore attendu assez de périodes
-		; BNE = Branch if Not Equal to zero
-        BNE WAIT_SEC
-		
-		; Si on arrive ici, toutes les périodes sont écoulées (R2 = 0)
-		; Durée totale écoulée = ROTATION_TIME x 0.1 seconde
-
-		; ===== ÉTAPE 4 : Arrêter le SysTick Timer =====
-		; Écrire 0 dans SYST_CSR pour désactiver le timer
-		MOV R1, #0
-		STR R1, [R0]
-
-		; Retourner au code appelant
-        BX LR
+		POP {PC}
 
 ROTATION_90_GAUCHE
 		PUSH {LR}				; Save LR because non-leaf-function

@@ -62,12 +62,14 @@ BUMPERS_INIT
 	
 	;setup bumpers pull-up
 	ldr r6, = GPIO_PORTE_BASE+GPIO_I_PUR    ;; Pul_up
-	ldr r0, = BROCHE0_1	
+	ldr r0, [r6]							;; Lire la valeur actuelle
+	ORR r0, r0, #BROCHE0_1					;; Activer pull-up sur PE0 et PE1
 	str r0, [r6]
 	
 	; Enable Digital Function
 	ldr r6, = GPIO_PORTE_BASE+GPIO_O_DEN    ;; Enable Digital Function 
-	ldr r0, = BROCHE0_1	
+	ldr r0, [r6]							;; Lire la valeur actuelle
+	ORR r0, r0, #BROCHE0_1					;; Activer digital sur PE0 et PE1
 	str r0, [r6]
 	
 	POP {r6, PC}						; Restaurer registres et retourner
