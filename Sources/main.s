@@ -32,6 +32,7 @@ MAX_ROTATIONS	EQU		4		; Nombre maximum de rotations avant arrêt
 	
 	IMPORT CHRONO_START
 	IMPORT CHRONO_STOP_DISTANCE
+	IMPORT DELAY_MILLISECONDS
 	
 	IMPORT LEDS_INIT
 	IMPORT LED_GAUCHE_BLINK_N_TIMES
@@ -59,64 +60,46 @@ __main
 	BL SWITCHES_INIT
 	BL LEDS_INIT
 	
-	; Test LED : clignoter 3 fois au démarrage
-	MOV r0, #3
-	BL LED_GAUCHE_BLINK_N_TIMES
 	
 	; ========================================================================
-	; ATTENTE DU CHOIX DE DIRECTION
+	; ATTENTE DU CHOIX DE DIRECTION (SW1=gauche, SW2=droite)
 	; ========================================================================
-	; SW1 = rotation gauche, SW2 = rotation droite
-	; Retour dans r0: 1=gauche, 2=droite
 	BL WAIT_SWITCH_PRESS
-	MOV r4, r0					; Stocker la direction dans r4 (registre global)
+	MOV r4, r0
 	
 	; ========================================================================
 	; INITIALISATION DU COMPTEUR DE ROTATIONS
 	; ========================================================================
-	; r7 = compteur de rotations (commence à 0)
 	MOV r7, #0
 
-loop	
+loop
 	; ========================================================================
-	; 1. AVANCER EN LIGNE DROITE
+	; AVANCER EN LIGNE DROITE
 	; ========================================================================
 	BL CHRONO_START
-	
-	; Configurer la direction AVANT d'activer les moteurs
 	BL MOTEUR_GAUCHE_AVANT
 	BL MOTEUR_DROIT_AVANT
 	BL MOTEUR_GAUCHE_ON
 	BL MOTEUR_DROIT_ON
 	
 	; ========================================================================
-	; 2. VÉRIFICATION CONTINUE DES BUMPERS
+	; VÉRIFICATION CONTINUE DES BUMPERS
 	; ========================================================================
-	; r0 = 0x03 si bumpers non pressés, 0x00 si pressés
 check_bumpers
 	BL READ_BUMPERS
 	CMP r0, #0x03
 	BEQ check_bumpers
 	
 	; ========================================================================
-	; 3. GESTION DE LA COLLISION
+	; GESTION DE LA COLLISION
 	; ========================================================================
-	; Si on arrive ici : bumpers pressés, gérer la collision
-	
-	; Arrêter le chronomètre et calculer la distance parcourue
-	BL CHRONO_STOP_DISTANCE		; r0 = distance en cm
-	
-	; Stocker immédiatement la distance dans le tableau
+	BL CHRONO_STOP_DISTANCE
 	LDR r8, =distances
-	STR r0, [r8, r7, LSL #2]	; distances[r7] = r0
+	STR r0, [r8, r7, LSL #2]
 	
-	; Arrêter les moteurs avant de tourner
 	BL MOTEUR_GAUCHE_OFF
 	BL MOTEUR_DROIT_OFF
 	
-	; Rotation de 90° dans la direction choisie au démarrage
-	; r4 = 1 : rotation gauche
-	; r4 = 2 : rotation droite
 	CMP r4, #1
 	BEQ rotate_left
 	
@@ -129,48 +112,44 @@ rotate_left
 	
 continue_loop
 	; ========================================================================
-	; 4. INCRÉMENTER LE COMPTEUR DE ROTATIONS
+	; INCRÉMENTER LE COMPTEUR DE ROTATIONS
 	; ========================================================================
-	ADD r7, r7, #1				; Incrémenter le compteur de rotations
-	
-	; Vérifier si on a atteint le nombre maximum de rotations
+	ADD r7, r7, #1
 	CMP r7, #MAX_ROTATIONS
-	BGE stop_robot				; Si r7 >= 4, arrêter le robot
-	
-	; Sinon, continuer : retourner au début pour repartir en ligne droite
+	BGE stop_robot
 	B loop
 
 ; ============================================================================
-; ARRÊT DU ROBOT
+; ARRÊT DU ROBOT ET AFFICHAGE DU RÉSULTAT
 ; ============================================================================
-; Le robot a effectué 4 rotations, on arrête tout et on boucle indéfiniment
 stop_robot
-	; S'assurer que les moteurs sont bien arrêtés
 	BL MOTEUR_GAUCHE_OFF
 	BL MOTEUR_DROIT_OFF
 	
-	; ========================================================================
-	; CALCUL DE LA SOMME TOTALE DES DISTANCES
-	; ========================================================================
-	; Additionner les 4 distances parcourues avant chaque rotation
+	; Calculer distance[1] × distance[2]
 	LDR r8, =distances
+	LDR r0, [r8, #4]
+	LDR r1, [r8, #8]
+	MUL r5, r1, r0
 	
-	; Charger et additionner les 4 distances
-	LDR r0, [r8, #0]			; distances[0]
-	LDR r1, [r8, #4]			; distances[1]
-	ADD r0, r0, r1				; Somme partielle
-	LDR r1, [r8, #8]			; distances[2]
-	ADD r0, r0, r1				; Somme partielle
-	LDR r1, [r8, #12]			; distances[3]
-	ADD r0, r0, r1				; r0 = somme totale
+	; Affichage : DIZAINES puis UNITÉS
+	MOV r0, r5
+	MOV r1, #10
+	UDIV r6, r0, r1
 	
-	; Faire clignoter la LED gauche N fois (N = somme des distances)
+	MOV r0, r6
 	BL LED_GAUCHE_BLINK_N_TIMES
 	
-	; ========================================================================
-	; ARRÊT FINAL
-	; ========================================================================
-	; Arrêter les moteurs
+	LDR r0, =2000
+	BL DELAY_MILLISECONDS
+	
+	MOV r0, #10
+	MUL r1, r6, r0
+	SUB r7, r5, r1
+	
+	MOV r0, r7
+	BL LED_GAUCHE_BLINK_N_TIMES
+	
 	BL MOTEUR_GAUCHE_OFF
 	BL MOTEUR_DROIT_OFF
 	

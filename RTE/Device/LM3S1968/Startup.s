@@ -78,6 +78,7 @@ __heap_limit
 ; The vector table.
 ;
 ;******************************************************************************
+        IMPORT  SysTick_Handler             ; Import custom SysTick handler
         EXPORT  __Vectors
 __Vectors
         DCD     StackMem + Stack            ; Top of Stack
@@ -95,7 +96,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Debug monitor handler
         DCD     0                           ; Reserved
         DCD     IntDefaultHandler           ; PendSV Handler
-        DCD     IntDefaultHandler           ; SysTick Handler
+        DCD     SysTick_Handler             ; SysTick Handler
         DCD     IntDefaultHandler           ; GPIO Port A
         DCD     IntDefaultHandler           ; GPIO Port B
         DCD     IntDefaultHandler           ; GPIO Port C

@@ -91,17 +91,12 @@ PWM_LOAD		EQU		(F_CPU_REAL / F_PWM) / 2	; = 781 (0x30D)
 		EXPORT	MOTEUR_DROIT_ON
 		EXPORT  MOTEUR_DROIT_OFF
 		EXPORT  MOTEUR_DROIT_AVANT
-		EXPORT  MOTEUR_DROIT_ARRIERE
-		EXPORT  MOTEUR_DROIT_INVERSE	
 		EXPORT	MOTEUR_GAUCHE_ON
 		EXPORT  MOTEUR_GAUCHE_OFF
 		EXPORT  MOTEUR_GAUCHE_AVANT
-		EXPORT  MOTEUR_GAUCHE_ARRIERE
-		EXPORT  MOTEUR_GAUCHE_INVERSE
 		EXPORT	ROTATION_90_GAUCHE
 		EXPORT	ROTATION_90_DROITE
 		
-		;; Import de la fonction centralisée de délai
 		IMPORT DELAY_MILLISECONDS
 
 
@@ -363,30 +358,8 @@ MOTEUR_GAUCHE_AVANT
 		mov	r0, #0
 		str	r0,[r6]
 		
-		POP {r6, PC}				; Restaurer registres et retourner		
+		POP {r6, PC}
 
-MOTEUR_DROIT_INVERSE
-		PUSH {r6, LR}				; Sauvegarder registres préservés
-		
-		;Inverse Direction (GPIO_D1)
-		ldr	r6, =(GPIODATA_D+(GPIO_1<<2)) 
-		ldr	r1, [r6]
-		EOR	r0, r1, #GPIO_1
-		str	r0,[r6]
-		
-		POP {r6, PC}				; Restaurer registres et retourner
-
-MOTEUR_GAUCHE_INVERSE
-		PUSH {r6, LR}				; Sauvegarder registres préservés
-		
-		;Inverse Direction (GPIO_D1)
-		ldr	r6, =(GPIODATA_H+(GPIO_1<<2)) 
-		ldr	r1, [r6]
-		EOR	r0, r1, #GPIO_1
-		str	r0,[r6]
-		
-		POP {r6, PC}				; Restaurer registres et retourner
-		
 ; ============================================================================
 ; DELAY_90_DEG - Génère un délai temporel fixe pour rotation de 90 degrés
 ; ============================================================================
